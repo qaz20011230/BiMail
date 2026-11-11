@@ -285,7 +285,7 @@ describe('恢复密钥换座（T5 客户端侧）', () => {
     expect(wall.snapshot?.my_slot).toBe('a')
   })
 
-  it('本设备有钥匙但换座失败 → 凭据屏，且不提供建墙入口（避免一人两墙）', async () => {
+  it('本设备有旧钥匙但换座失败 → 凭据屏，并给出建墙入口（不再有死路）', async () => {
     window.localStorage.setItem('bimail.recovery_key', validKey())
     hoisted.fake.rebindSeat = async () => {
       throw new BackendError('invalid_hash')
@@ -293,7 +293,9 @@ describe('恢复密钥换座（T5 客户端侧）', () => {
     const wall = await loadStore()
     await wall.boot()
     expect(wall.screen).toBe('lost')
-    expect(wall.canCreateWall).toBe(false)
+    expect(wall.canCreateWall).toBe(true)
+    await wall.createNewWall()
+    expect(wall.screen).toBe('recovery')
   })
 
   it('提交钥匙：成功进入墙；钥匙错误只给一行本地语', async () => {

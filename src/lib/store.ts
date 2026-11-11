@@ -418,12 +418,14 @@ async function acceptInvite(token: string): Promise<void> {
 
 async function tryStoredKeyRebind(storedKey: string): Promise<void> {
   if (!backend) return
-  wall.canCreateWall = false
   try {
     const snapshot = await backend.rebindSeat(await recoveryHash(storedKey))
     wall.snapshot = snapshot
     await enterWall()
   } catch (error) {
+    // 本设备钥匙换不回座位（旧钥匙残留 / 墙已销毁 / 数据库重置）：
+    // 当前身份没有座位，凭据屏必须同时给出「建一堵新墙」，否则用户无路可走。
+    wall.canCreateWall = true
     wall.screen = 'lost'
     wall.errorLine = isBackendError(error) && error.code === 'invalid_hash' ? null : recoveryErrorLine(error)
   }
@@ -509,7 +511,8 @@ async function sync(): Promise<void> {
     if (isBackendError(error) && error.code === 'no_seat') {
       wall.screen = 'lost'
       wall.errorLine = null
-      wall.canCreateWall = false
+      // 当前身份已无座位：给「建一堵新墙」入口（旧墙仍可输入恢复密钥找回）。
+      wall.canCreateWall = true
     }
     /* 网络失败静默：没有断线状态可显示（A3） */
   } finally {
