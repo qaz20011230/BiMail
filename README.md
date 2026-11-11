@@ -138,7 +138,36 @@ npm run check          # typecheck + 文案禁令 + 色彩验收 + 单测 + 集�
 
 ---
 
-## 部署（生产）
+## 线上部署（本次已上线）
+
+| 项 | 值 |
+|---|---|
+| 访问地址 | **https://bimail.liang.world/**（`http://` 已可用；HTTPS 证书由 GitHub Pages 自动签发，签发后自动生效） |
+| 前端托管 | GitHub Pages，发布源 = **`gh-pages` 分支 /(root)**（`CNAME` = `bimail.liang.world`） |
+| 生产后端 | Supabase 项目 `gcxbxllmusdpnskpdlcj`（Singapore / ap-southeast-1），匿名登录已开启，迁移已执行 |
+| DNS | DNSPod：`bimail` CNAME → `qaz20011230.github.io` |
+| 生产冒烟 | 匿名登录、建墙、双向寄出、RLS 第三方零行、幂等、恢复密钥换座、关墙销毁、限流 —— 20 项通过 |
+
+**发布/更新前端**（Supabase 的 anon key 是公开 key，可进入前端包）：
+
+```bash
+cd BiMail
+set -a && . ./.env.local && set +a          # 本地生产配置（gitignored）
+VITE_BACKEND=supabase npm run build
+rm -rf /tmp/bimail-ghpages && mkdir -p /tmp/bimail-ghpages
+cp -R dist/. /tmp/bimail-ghpages/
+printf 'bimail.liang.world\n' > /tmp/bimail-ghpages/CNAME
+touch /tmp/bimail-ghpages/.nojekyll
+cd /tmp/bimail-ghpages && git init -q -b gh-pages && git add -A \
+  && git -c user.email=deploy@bimail.local -c user.name=bimail-deploy commit -qm "deploy" \
+  && git push git@github.com:qaz20011230/BiMail.git gh-pages --force
+```
+
+> `scripts/deploy-pages.mjs` 可将上述步骤自动化（可选）；**不要**把 `.env.local`（含数据库密码）提交到仓库。
+
+---
+
+## 部署（生产，从零开始）
 
 ### 1. Supabase
 
@@ -146,7 +175,7 @@ npm run check          # typecheck + 文案禁令 + 色彩验收 + 单测 + 集�
 2. 在 SQL Editor 依次执行 `supabase/migrations/` 下的迁移（或使用 Supabase CLI `supabase db push`）。
 3. 记录 Project URL 与 `anon` key（`Settings → API`）。**永远不要把 `service_role` key 放进前端。**
 
-### 2. 构建与托管
+### 2. 构建与托管（任选）
 
 ```bash
 VITE_BACKEND=supabase \
@@ -156,7 +185,10 @@ npm run build
 ```
 
 产物是纯静态文件（`dist/`），可托管于 GitHub Pages / 任意静态空间；`base: './'` 支持子路径。
-仓库内置 `.github/workflows/deploy.yml`：push 到 `main` 时自动 typecheck → test → build → 性能断言 → 发布 Pages；请在仓库 Secrets 配置 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`。
+
+两种发布方式：
+- **`gh-pages` 分支（当前线上使用，无需任何 GitHub Secrets）**：本地构建后把 `dist/` 推到 `gh-pages` 分支，Pages 发布源设为该分支；见上文「发布/更新前端」。
+- **GitHub Actions（可选）**：`.github/workflows/deploy.yml` 为手动触发；需在仓库 Secrets 配置 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`，并在 Settings → Pages 选择 GitHub Actions。注意 anon key 本身是公开 key，不是服务端密钥。
 
 ### 3. 安全头
 
