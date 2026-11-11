@@ -48,6 +48,10 @@ npm run dev        # API: 127.0.0.1:8787 + Web: http://localhost:5173
 |---|---|---|
 | ![恢复密钥](docs/evidence/01-recovery-screen-dark.png) | ![凭据失效](docs/evidence/06-lost-key-screen-light.png) | ![暗色](docs/evidence/07-desktop-dark-wall.png) |
 
+**线上实拍**（`https://bimail.liang.world`，Supabase 生产后端）：
+
+![生产环境](docs/evidence/09-production-wall.png)
+
 ---
 
 ## 工程结构与关键决策
@@ -142,11 +146,11 @@ npm run check          # typecheck + 文案禁令 + 色彩验收 + 单测 + 集�
 
 | 项 | 值 |
 |---|---|
-| 访问地址 | **https://bimail.liang.world/**（`http://` 已可用；HTTPS 证书由 GitHub Pages 自动签发，签发后自动生效） |
+| 访问地址 | **https://bimail.liang.world/**（HTTPS 证书已签发，已开启 Enforce HTTPS；`http://` 由 GitHub 边缘节点 301 到 https） |
 | 前端托管 | GitHub Pages，发布源 = **`gh-pages` 分支 /(root)**（`CNAME` = `bimail.liang.world`） |
 | 生产后端 | Supabase 项目 `gcxbxllmusdpnskpdlcj`（Singapore / ap-southeast-1），匿名登录已开启，迁移已执行 |
 | DNS | DNSPod：`bimail` CNAME → `qaz20011230.github.io` |
-| 生产冒烟 | 匿名登录、建墙、双向寄出、RLS 第三方零行、幂等、恢复密钥换座、关墙销毁、限流 —— 20 项通过 |
+| 生产冒烟 | API 层：匿名登录、建墙、双向寄出、RLS 第三方零行、幂等、恢复密钥换座、关墙销毁、限流 20 项通过；浏览器层（https://bimail.liang.world）：首访凭据屏 → 建墙 → 密钥屏 → 寄出 → 设置面 → 销毁 → closed，全程无 JS 错误，请求仅命中自身静态资源与 `*.supabase.co` |
 
 **发布/更新前端**（Supabase 的 anon key 是公开 key，可进入前端包）：
 
