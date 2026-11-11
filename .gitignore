@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.npm-cache/
+.env
+.env.local
+server/data/
+test-results/
+playwright-report/
+.DS_Store
+*.log
