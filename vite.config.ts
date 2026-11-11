@@ -8,30 +8,24 @@ import type { Plugin } from 'vite'
  * meta CSP cannot express frame-ancestors; deploy headers cover that (see README).
  */
 function cspPlugin(): Plugin {
+  const content = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self' https://*.supabase.co",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "object-src 'none'",
+  ].join('; ')
+
   return {
     name: 'bimail-csp',
     apply: 'build',
-    transformIndexHtml() {
-      return [
-        {
-          tag: 'meta',
-          attrs: {
-            'http-equiv': 'Content-Security-Policy',
-            content: [
-              "default-src 'self'",
-              "script-src 'self'",
-              "style-src 'self'",
-              "img-src 'self' data:",
-              "font-src 'self'",
-              "connect-src 'self' https://*.supabase.co",
-              "base-uri 'none'",
-              "form-action 'none'",
-              "object-src 'none'",
-            ].join('; '),
-          },
-          injectTo: 'head-prepend',
-        },
-      ]
+    transformIndexHtml(html) {
+      const meta = `<meta http-equiv="Content-Security-Policy" content="${content}" />`
+      return html.replace(/<head>/i, (match) => `${match}\n    ${meta}`)
     },
   }
 }

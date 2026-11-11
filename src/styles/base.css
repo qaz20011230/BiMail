@@ -1,0 +1,553 @@
+/* 版式与全站骨架（验收：§4.1 对比度、§4.2 可测留白、§4.4 字体与动效）。 */
+
+:root {
+  --bimail-keyboard-inset: 0px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink-mine);
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+#app,
+.app {
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+textarea,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ink-faint) 25%, transparent);
+}
+
+/* —— 通用 —— */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.faint {
+  color: var(--ink-faint);
+}
+
+/* 词形控件：无边框、无背景、无彩色；触屏最小 44px，键盘可见焦点（§4.4 裁定）。 */
+.word {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  font-weight: 400;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.word:hover {
+  color: var(--ink-mine);
+}
+
+.word:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* —— 墙 —— */
+
+.wall {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100svh;
+}
+
+.stream-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 48px max(var(--gutter-mobile), calc((100% - var(--column-max)) / 2)) 24px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stream {
+  display: block;
+  width: 100%;
+}
+
+.stream-sentinel {
+  height: 1px;
+}
+
+/* 哨兵恒为首子元素，首日分组不应额外获得 40px 上间距。 */
+.stream-sentinel + .day-group {
+  margin-top: 0;
+}
+
+/* —— 日分组与留言 —— */
+
+.day-group {
+  margin-top: var(--space-day-top);
+}
+
+.day-group:first-child {
+  margin-top: 0;
+}
+
+.day-group + .day-group {
+  margin-top: var(--space-day-top);
+}
+
+.day-label {
+  margin: 0 0 var(--space-day-bottom);
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  font-weight: 400;
+  color: var(--ink-faint);
+  text-align: left;
+}
+
+.entry {
+  width: var(--entry-width);
+  margin: 0 0 var(--space-entry);
+}
+
+.entry:last-child {
+  margin-bottom: 0;
+}
+
+/* 身份编码（§4.3）：水平位置 + 字重 + 墨色，三重冗余。 */
+.entry--mine {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.entry--theirs {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.entry-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+}
+
+.entry--mine .entry-body {
+  color: var(--ink-mine);
+  font-weight: var(--weight-mine);
+}
+
+.entry--theirs .entry-body {
+  color: var(--ink-theirs);
+  font-weight: var(--weight-theirs);
+}
+
+.entry--queued {
+  opacity: 1;
+}
+
+@keyframes bimail-entry-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.entry--new {
+  animation: bimail-entry-in var(--duration-fade) ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry--new {
+    animation: none;
+  }
+}
+
+/* —— 流中文字：派生语 / 本地语 / 通知 / 邀请链接 —— */
+
+.derived-line,
+.notice-line {
+  margin: var(--space-day-top) auto var(--space-day-bottom);
+  max-width: 96%;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.notice-line {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.derived-line:first-child {
+  margin-top: 0;
+}
+
+.empty-line {
+  margin-top: 96px;
+}
+
+.invite-line {
+  margin: 0 auto var(--space-day-top);
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: center;
+  word-break: break-all;
+  white-space: normal;
+  user-select: all;
+}
+
+.local-line {
+  display: block;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: left;
+  background: none;
+  border: 0;
+  font-family: inherit;
+}
+
+button.local-line {
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+button.local-line:hover {
+  color: var(--ink-mine);
+}
+
+button.local-line:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.settings-entry {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-day-top);
+}
+
+/* —— 输入区（常驻底部，无边框、无背景、无焦点光环） —— */
+
+.composer-dock {
+  flex: 0 0 auto;
+  padding: 8px max(var(--gutter-mobile), calc((100% - var(--column-max)) / 2))
+    calc(12px + env(safe-area-inset-bottom) + var(--bimail-keyboard-inset, 0px));
+  background: var(--paper);
+}
+
+.composer {
+  width: 100%;
+}
+
+.composer-hint {
+  margin: 0 0 8px;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: left;
+}
+
+.composer-input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  max-height: 40vh;
+  margin: 0;
+  padding: 8px 0;
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  font-weight: 400;
+  color: var(--ink-mine);
+  background: none;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  caret-color: var(--ink-mine);
+}
+
+.composer-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.composer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+}
+
+.composer-word {
+  font-size: var(--size-body);
+  color: var(--ink-faint);
+}
+
+.composer-shortcut {
+  font-size: var(--size-body);
+  line-height: 1;
+  color: var(--ink-faint);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.composer-overflow {
+  margin: 4px 0 0;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: left;
+}
+
+/* —— 独立一屏：恢复密钥 / 凭据失效 / 设置 / 错误 —— */
+
+.surface {
+  min-height: 100dvh;
+  max-width: var(--column-max);
+  margin: 0 auto;
+  padding: 64px var(--gutter-mobile) calc(48px + env(safe-area-inset-bottom));
+}
+
+.surface--recovery,
+.surface--lost {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+}
+
+.surface--recovery p,
+.surface--lost p {
+  margin: 0;
+}
+
+.surface--recovery .word,
+.surface--lost .word {
+  align-self: flex-start;
+}
+
+.surface--recovery .local-line,
+.surface--lost .local-line {
+  margin: 0;
+}
+
+.recovery-key:empty {
+  display: none;
+}
+
+.surface--settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.surface--notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.surface--notice .notice-line {
+  margin: 0;
+  max-width: 86%;
+}
+
+.recovery-line,
+.lost-line {
+  margin: 0;
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  color: var(--ink-mine);
+  text-align: left;
+}
+
+.recovery-key {
+  display: block;
+  margin: 0;
+  padding: 8px 0;
+  font-family: var(--font-mono);
+  font-size: var(--size-body);
+  line-height: 1.6;
+  letter-spacing: 0.12em;
+  color: var(--ink-mine);
+  word-break: break-all;
+  user-select: all;
+}
+
+.recovery-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.recovery-confirm {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.key-input {
+  display: block;
+  width: 100%;
+  padding: 12px 0;
+  font-family: var(--font-mono);
+  font-size: var(--size-body);
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mine);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--ink-faint);
+  border-radius: 0;
+  outline: none;
+  appearance: none;
+}
+
+.key-input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.lost-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-title {
+  margin: 0 0 24px;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.settings-row {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  color: var(--ink-mine);
+  text-align: left;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-row:hover {
+  color: var(--ink-mine);
+}
+
+.settings-row:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.settings-confirm-line {
+  margin: 0;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 20px;
+}
+
+.settings-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 32px;
+}
+
+/* —— 稳定的小屏修正 —— */
+
+@media (max-width: 480px) {
+  .stream-scroll {
+    padding-top: 32px;
+  }
+
+  .surface {
+    padding-top: 48px;
+  }
+
+  .entry {
+    width: 100%;
+  }
+}

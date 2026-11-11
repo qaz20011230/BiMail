@@ -1,0 +1,42 @@
+/* 设计令牌。全站色相数 = 1（中性暖灰），无强调色，无饱和度 > 6% 的色值。 */
+
+:root {
+  color-scheme: light dark;
+
+  --paper: #f5f3ef;
+  --ink-mine: #1a1917;
+  --ink-theirs: #2e2c28;
+  --ink-faint: #6e6a61;
+
+  --weight-mine: 500;
+  --weight-theirs: 400;
+
+  --font-body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  --size-body: 17px;
+  --size-small: 13px;
+  --leading-body: 1.75;
+  --leading-small: 1.5;
+
+  --column-max: 600px;
+  --entry-width: 86%;
+  --gutter-mobile: 20px;
+
+  --space-entry: 24px;
+  --space-day-top: 40px;
+  --space-day-bottom: 16px;
+
+  --duration-fade: 120ms;
+  --duration-scroll: 160ms;
+  --focus-ring: 1px solid var(--ink-faint);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171614;
+    --ink-mine: #e8e4dc;
+    --ink-theirs: #d8d3c9;
+    --ink-faint: #9a958b;
+  }
+}

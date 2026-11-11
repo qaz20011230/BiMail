@@ -13,7 +13,7 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "node --test tests/integration/",
+    "test:integration": "node --test tests/integration/*.test.mjs",
     "test:sql": "node tests/sql/run.mjs",
     "check:copy": "node scripts/check-copy.mjs",
     "check:budget": "node scripts/check-budget.mjs",
