@@ -183,15 +183,17 @@ describe('Composer 空态与非空态', () => {
     expect(shortcut.classes()).toContain('faint')
   })
 
-  it('showShortcutHint 时提示显示在输入框上方；输入后隐藏，寄出后重现', async () => {
+  it('showShortcutHint 时提示显示在输入框上方，输入过程中保持；首次成功后由父组件关闭', async () => {
     const wrapper = mountComposer({ showShortcutHint: true })
     const hint = wrapper.find('.composer-hint')
     expect(hint.exists()).toBe(true)
     expect(hint.text()).toBe(copy.shortcutHint)
     await setInput(wrapper, 'x')
-    expect(wrapper.find('.composer-hint').exists()).toBe(false)
+    expect(wrapper.find('.composer-hint').exists()).toBe(true)
     await pressCtrlEnter(wrapper)
     expect(wrapper.find('.composer-hint').exists()).toBe(true)
+    await wrapper.setProps({ showShortcutHint: false })
+    expect(wrapper.find('.composer-hint').exists()).toBe(false)
   })
 
   it('点击词形「寄出」也能寄出', async () => {

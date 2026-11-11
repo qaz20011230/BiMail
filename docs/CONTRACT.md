@@ -136,7 +136,7 @@ npm run check:copy     # 禁用词 / 结构禁令扫描
 - 草稿（`src/lib/draft.ts`）：`loadDraft()/saveDraft(body)`，输入节流 300ms 写 `KEYS.draft`；`blur`/`visibilitychange hidden` 立即写；寄出后清空。不得上传。
 - 自增高：`min-height:48px`，`max-height:40vh`，`overflow-y:auto`；输入时按 `scrollHeight` 设 height。
 - 移动端：监听 `visualViewport` 的 resize/scroll，把 `window.innerHeight - visualViewport.height - visualViewport.offsetTop` 写入 `document.documentElement.style.setProperty('--bimail-keyboard-inset', '<px>')`；失焦/隐藏时归零。挂载时仅 `matchMedia('(pointer:fine)').matches` 才自动 focus。
-- 快捷键提示 `.composer-hint`（`copy.shortcutHint`）仅在 `showShortcutHint && value.length===0` 时显示在输入框上方。
+- 快捷键提示 `.composer-hint`（`copy.shortcutHint`）：`showShortcutHint` 为真时显示在输入框上方，且**输入过程中也保持**（SPEC §3.1-8「永久保留至第一次成功寄出」）；父组件在首次成功寄出后把 `showShortcutHint` 置为 false。
 - 超限提示 `.composer-overflow` 一行淡字，位于输入框下方。
 - `src/lib/queue.ts`：队列纯函数（localStorage 持久化，不触网）：`loadQueue(): QueuedEntry[]`、`saveQueue(q)`、`enqueue(q, entry)`、`removeQueued(q, client_uuid)`、`newClientUuid(): string`（crypto.randomUUID，降级手写 v4）、`sortQueue`。不做网络请求（寄出由 Lead 的 store 负责）。
 

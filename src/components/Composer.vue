@@ -34,7 +34,9 @@ const value = ref('')
 const overflow = ref(0)
 
 const hasValue = computed(() => value.value.length > 0)
-const hintVisible = computed(() => props.showShortcutHint && value.value.length === 0)
+// SPEC §3.1-8：这行提示「永久保留至第一次成功寄出」，输入过程中也不隐藏；
+// 父组件在首次成功寄出后把 showShortcutHint 置为 false。
+const hintVisible = computed(() => props.showShortcutHint)
 const shortcutText = shortcutLabel(detectMac())
 
 let draftTimer: ReturnType<typeof setTimeout> | null = null

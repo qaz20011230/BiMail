@@ -546,8 +546,4 @@ button.local-line:focus-visible {
   .surface {
     padding-top: 48px;
   }
-
-  .entry {
-    width: 100%;
-  }
 }

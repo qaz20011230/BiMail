@@ -38,6 +38,16 @@ npm run dev        # API: 127.0.0.1:8787 + Web: http://localhost:5173
 
 生产目标为 Supabase（匿名 Auth + Postgres + RLS + 手写 PostgREST 客户端），见 §6。
 
+### 界面（真实浏览器截图，详见 [`docs/evidence/`](docs/evidence/)）
+
+| 桌面亮色（两人墙） | 移动端输入中 | 设置面 |
+|---|---|---|
+| ![桌面亮色](docs/evidence/03-desktop-light-wall.png) | ![移动端](docs/evidence/08-mobile-input.png) | ![设置面](docs/evidence/05-settings-light.png) |
+
+| 恢复密钥屏 | 凭据失效屏 | 暗色 |
+|---|---|---|
+| ![恢复密钥](docs/evidence/01-recovery-screen-dark.png) | ![凭据失效](docs/evidence/06-lost-key-screen-light.png) | ![暗色](docs/evidence/07-desktop-dark-wall.png) |
+
 ---
 
 ## 工程结构与关键决策
@@ -102,7 +112,12 @@ npm run check          # typecheck + 文案禁令 + 色彩验收 + 单测 + 集�
 
 **当前实测（生产构建）**：JS **37.70KB gzip**（预算 55KB）、CSS **2.08KB gzip**（预算 6KB）、首屏 **2 个请求**、零图片、零 Web Font、零第三方脚本、CSP 内联于 `dist/index.html`。
 
-浏览器级验收（两身份全流程、IME、离线队列、分页、暗色、键盘、移动端、CSP、LCP/INP）见 [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md)。
+浏览器级验收见 [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md)（独立 QA，24/24 条 DoD 通过）：
+
+- 4G + CPU 4x + 390×844 仿真：**LCP 324ms（冷启）/ 348ms（回访）**、**INP ≈64ms**（阈值 1.0s / 100ms）。
+- 1013 条历史：首屏 120 → 上翻 240，DOM 恒 ≤240，滚动 avg 15.8ms/帧。
+- 屏内可见留言中位数：桌面 2 / 移动 1（≤4）；空闲 10s 网络请求 0、WebSocket 0。
+- 截图为 Tabbit Chromium 实测，复跑手册见 [`tests/e2e/README.md`](tests/e2e/README.md)。
 
 ---
 
