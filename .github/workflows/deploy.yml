@@ -1,8 +1,8 @@
 name: Deploy BiMail to GitHub Pages
 
+# 手动触发：Pages 首次部署前需在仓库 Settings → Pages 选择 "GitHub Actions"，
+# 并配置 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY 两个 Secrets（见 README）。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
