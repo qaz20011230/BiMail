@@ -382,4 +382,8 @@ export class SupabaseBackend implements Backend {
   async closeAndErase(): Promise<void> {
     await this.rpc<unknown>('close_and_erase', {})
   }
+
+  async leaveClosedWall(): Promise<void> {
+    await this.rpc<unknown>('leave_closed_wall', {})
+  }
 }

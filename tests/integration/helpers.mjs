@@ -55,12 +55,13 @@ function waitForStartup(child) {
 }
 
 /**
- * 启动后端。tempFile=true 时使用临时文件库（允许测试进程另开连接做运维级断言）。
- * @returns {Promise<{ baseUrl: string, port: number, dbFile: string, stderr: () => string, stop: () => Promise<void> }>}
+ * 启动后端。tempFile=true 时使用临时文件库（允许测试进程另开连接做运维级断言）；
+ * dbFile 传入既有文件库（用于旧 schema 迁移测试，由调用方负责清理）。
+ * @returns {Promise<{ baseUrl: string, port: number, dbFile: string, stderr: () => string, exitCode: () => number|null, stop: () => Promise<void> }>}
  */
-export async function startBackend({ tempFile = false } = {}) {
-  const tempDir = tempFile ? mkdtempSync(join(tmpdir(), 'bimail-it-')) : null
-  const dbFile = tempDir ? join(tempDir, 'bimail.db') : ':memory:'
+export async function startBackend({ tempFile = false, dbFile: providedDbFile = null } = {}) {
+  const tempDir = !providedDbFile && tempFile ? mkdtempSync(join(tmpdir(), 'bimail-it-')) : null
+  const dbFile = providedDbFile ?? (tempDir ? join(tempDir, 'bimail.db') : ':memory:')
   const child = spawn(process.execPath, [SERVER_PATH], {
     env: { ...process.env, PORT: '0', BIMAIL_DB: dbFile },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -161,6 +162,7 @@ export function createApi(baseUrl) {
     revokeOtherSessions: (token) =>
       call('POST', '/api/rpc/revoke_other_sessions', { token, body: {} }),
     closeAndErase: (token) => call('POST', '/api/rpc/close_and_erase', { token, body: {} }),
+    leaveClosedWall: (token) => call('POST', '/api/rpc/leave_closed_wall', { token, body: {} }),
   }
 }
 

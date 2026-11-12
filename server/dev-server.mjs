@@ -119,6 +119,14 @@ const ROUTES = new Map([
       handler: (store, { auth }) => store.closeAndErase(auth.userId),
     },
   ],
+  [
+    'POST /api/rpc/leave_closed_wall',
+    {
+      method: 'POST',
+      auth: true,
+      handler: (store, { auth }) => store.leaveClosedWall(auth.userId),
+    },
+  ],
 ])
 
 function sendJson(response, status, payload) {

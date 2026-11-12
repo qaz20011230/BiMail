@@ -27,6 +27,7 @@ class FakeBackend implements Backend {
   }
   entries: Entry[] = []
   nextSeq = 1
+  createdSnapshot: WallSnapshot | null = null
 
   async ensureSession(): Promise<Session> {
     this.calls.push('ensureSession')
@@ -35,7 +36,7 @@ class FakeBackend implements Backend {
 
   async createWall(recoveryHash: string): Promise<WallSnapshot> {
     this.calls.push(`createWall:${recoveryHash}`)
-    return this.snapshot
+    return this.createdSnapshot ?? this.snapshot
   }
 
   async acceptInvite(token: string, recoveryHash: string): Promise<WallSnapshot> {
@@ -102,6 +103,10 @@ class FakeBackend implements Backend {
     this.calls.push('closeAndErase')
     this.snapshot = { ...this.snapshot, state: 'closed', invite: null }
     this.entries = this.entries.filter((entry) => entry.slot !== this.snapshot.my_slot)
+  }
+
+  async leaveClosedWall(): Promise<void> {
+    this.calls.push('leaveClosedWall')
   }
 }
 
@@ -313,6 +318,78 @@ describe('恢复密钥换座（T5 客户端侧）', () => {
     expect(wall.screen).toBe('lost')
     expect(wall.errorLine).toBe('这把钥匙不对。')
     hoisted.fake.rebindSeat = original
+  })
+})
+
+describe('closed 墙：离开旧墙并开始新的一堵墙', () => {
+  it('再建一堵新墙：先 leaveClosedWall 释放座位，再 createWall，并清理旧墙本地状态', async () => {
+    hoisted.fake.calls.push('wallSnapshot')
+    hoisted.fake.snapshot = {
+      ...hoisted.fake.snapshot,
+      state: 'closed',
+      my_slot: 'a',
+      invite: null,
+      seats: [
+        { slot: 'a', joined_on: '2026-11-12' },
+        { slot: 'b', joined_on: '2026-11-13' },
+      ],
+    }
+    hoisted.fake.entries = [{ id: 'e1', seq: 1, slot: 'b', body: '对方的留言', written_on: '2026-11-13' }]
+    const newWall: WallSnapshot = {
+      dyad_id: 'dyad-new',
+      state: 'nascent',
+      my_slot: 'a',
+      seats: [{ slot: 'a', joined_on: '2026-11-20' }],
+      invite: { token: 'N'.repeat(32), expires_on: '2026-11-27' },
+    }
+    hoisted.fake.createdSnapshot = newWall
+    window.localStorage.setItem('bimail.last_seen_seq', '99')
+    window.localStorage.setItem('bimail.invite', JSON.stringify({ dyad_id: 'dyad-old', token: 'O'.repeat(32), expires_on: '2026-11-19' }))
+
+    const wall = await loadStore()
+    await wall.boot()
+    expect(wall.screen).toBe('wall')
+    expect(wall.snapshot?.state).toBe('closed')
+
+    await wall.startNewWall()
+
+    expect(hoisted.fake.calls).toContain('leaveClosedWall')
+    expect(hoisted.fake.calls.some((call) => call.startsWith('createWall:'))).toBe(true)
+    expect(wall.snapshot?.dyad_id).toBe('dyad-new')
+    expect(wall.snapshot?.state).toBe('nascent')
+    expect(wall.screen).toBe('recovery')
+    expect(wall.entries).toHaveLength(0)
+    expect(window.localStorage.getItem('bimail.last_seen_seq')).toBeNull()
+    // 新墙的邀请明文已重新保管
+    expect(window.localStorage.getItem('bimail.invite')).toContain('N'.repeat(32))
+  })
+
+  it('座位已被释放（leave 返回 no_seat）时仍可继续建新墙', async () => {
+    hoisted.fake.calls.push('wallSnapshot')
+    hoisted.fake.snapshot = {
+      ...hoisted.fake.snapshot,
+      state: 'closed',
+      my_slot: 'a',
+      invite: null,
+    }
+    const newWall: WallSnapshot = {
+      dyad_id: 'dyad-after-release',
+      state: 'nascent',
+      my_slot: 'a',
+      seats: [{ slot: 'a', joined_on: '2026-11-20' }],
+      invite: null,
+    }
+    hoisted.fake.createdSnapshot = newWall
+    hoisted.fake.leaveClosedWall = async () => {
+      throw new BackendError('no_seat')
+    }
+
+    const wall = await loadStore()
+    await wall.boot()
+    await wall.startNewWall()
+
+    expect(wall.snapshot?.dyad_id).toBe('dyad-after-release')
+    expect(wall.screen).toBe('recovery')
   })
 })
 

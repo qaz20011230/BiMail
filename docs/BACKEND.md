@@ -47,7 +47,7 @@ npm run dev         # API + Vite（5173），Vite 把 /api 代理到 8787
 - 日期：`written_on` 非法或不在服务端 UTC 日期 ±2 日内 → 取服务端日期；不做时区换算。
 - 限流：`rebind_seat` 按调用者记录，1 小时 5 次，失败与通过都计；被限流的调用不计数。
 - 数据层外键：`seat.user_id → users(id) ON DELETE RESTRICT`（A4 的数据库级保护）、
-  `entry` 对 `dyad` 与 `seat(dyad_id, slot)` 外键、`seat.user_id UNIQUE`（A1）。
+  `entry` 对 `dyad` 与 `seat(dyad_id, slot)` 外键；`seat.user_id` 为**部分唯一索引**（`where released_at is null`，A1 按活跃墙解释；closed 墙经 `leave_closed_wall` 释放后保留历史行）。
 - 不记录请求体、token、IP、精确时刻；所有响应 `cache-control: no-store`；
   错误体固定 `{ "error": "<BackendErrorCode>" }`。
 
@@ -137,7 +137,7 @@ form-action 'none'; object-src 'none'
 ### 3.1 表与视图
 
 - `dyad`：墙，三态 `nascent | open | closed`。
-- `seat`：座位。主键 `(dyad_id, slot)`，`slot ∈ {a,b}`，`user_id UNIQUE`（一人一墙），
+- `seat`：座位。主键 `(dyad_id, slot)`，`slot ∈ {a,b}`，`user_id` 部分唯一（`released_at is null` 时一人一墙；closed 墙离开后释放），
   `user_id → auth.users(id) ON DELETE RESTRICT`（已寄出文字恒可读的数据库级保护），
   `recovery_hash bytea` 只存恢复密钥的 SHA-256。
 - `entry`：留言，只追加。`seq bigint generated always as identity` 严格单调；
@@ -178,6 +178,7 @@ grant select (slot, joined_on) on public.seat to authenticated;
 | `rebind_seat(recovery_hash bytea)` | 恢复哈希 | `{snapshot}` |
 | `revoke_other_sessions()` | — | `{}` |
 | `close_and_erase()` | — | `{}` |
+| `leave_closed_wall()` | — | `{}` |
 
 - 业务错误一般以 `raise exception '<code>'` 表达，PostgREST 把 message 原样带回，
   `src/lib/supabase.ts` 按 `BackendErrorCode` 映射（如 `already_seated`、`no_seat`、
@@ -205,7 +206,7 @@ npx vitest run tests/unit/supabase.test.ts   # mock fetch 断言 URL/header/错�
 ```
 
 `tests/sql/run.mjs` 覆盖：T1 第三方零行、T2 视图字段集、T3 表级写权限为假、
-T4 邀请单次消费/未知/过期、T5 换座后旧 uid 零行、T6 `seat.user_id UNIQUE`、
+T4 邀请单次消费/未知/过期、T5 换座后旧 uid 零行、T6 活跃座位 `user_id` 部分唯一、
 T7 外键 RESTRICT 阻止删除在座主体，以及视图不可写、幂等重放、日期 ±2 日钳制、
 8000 码点边界、closed 语义、分页上限、限流。PGlite 支持 role / RLS / security definer
 与 `set role`，以上断言**未降级**；未覆盖的是真实 PostgREST 的 HTTP 序列化与 GoTrue

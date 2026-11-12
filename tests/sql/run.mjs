@@ -198,6 +198,13 @@ async function rpcCloseAndErase(uid) {
   })
 }
 
+async function rpcLeaveClosedWall(uid) {
+  return asUser(uid, async () => {
+    const result = await db.query('select public.leave_closed_wall() as result')
+    return result.rows[0].result
+  })
+}
+
 /** 断言调用抛出指定业务错误码（异常文本即错误码）。 */
 async function expectCode(fn, expected) {
   let error = null
@@ -290,6 +297,31 @@ await check('迁移：表与视图齐全，迁移可重复执行', async () => {
   }
   assert.equal(await scalar("select count(*)::int from pg_roles where rolname = 'anon'"), 1)
   assert.equal(await scalar("select count(*)::int from pg_roles where rolname = 'authenticated'"), 1)
+
+  // 0003：seat.released_at + active 部分唯一索引（旧全局 UNIQUE 已移除）
+  const seatColumns = (
+    await rows(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'seat' order by ordinal_position",
+    )
+  ).map((row) => row.column_name)
+  assert.ok(seatColumns.includes('released_at'), 'seat 必须有 released_at')
+  assert.equal(
+    await scalar(
+      "select count(*)::int from pg_indexes where schemaname = 'public' and indexname = 'seat_active_user_uidx' and indexdef like '%released_at IS NULL%'",
+    ),
+    1,
+    '必须存在 active 部分唯一索引',
+  )
+  assert.equal(
+    await scalar(
+      `select count(*)::int from pg_constraint
+       where conrelid = 'public.seat'::regclass and contype = 'u'
+         and conkey = array[(select attnum from pg_attribute
+                             where attrelid = 'public.seat'::regclass and attname = 'user_id')]::smallint[]`,
+    ),
+    0,
+    '旧的全局 UNIQUE(user_id) 必须已被移除',
+  )
 })
 
 await check('create_wall：nascent 墙 + seat a + 32 字符邀请 + 7 天过期 + invite 只回显一次', async () => {
@@ -775,6 +807,96 @@ await check('未认证 / 匿名直接调用 RPC 被拒绝', async () => {
     await db.exec('reset role')
   }
   assert.equal(await scalar("select count(*)::int from public.seat where user_id = $1", [noClaims]), 0)
+})
+
+await check('leave_closed_wall：closed 前 wall_not_closed；closed 后释放座位、可建新墙、对方仍可读', async () => {
+  const a = await newUser()
+  const b = await newUser()
+  const hashA = keyHash('leave-a')
+  const hashB = keyHash('leave-b')
+  const wall = await rpcCreateWall(a, hashA)
+  const dyadId = wall.snapshot.dyad_id
+  const token = wall.snapshot.invite.token
+  await rpcAcceptInvite(b, token, hashB)
+  await rpcPostEntry(a, randomUUID(), 'a-entry', todayUtc())
+  await rpcPostEntry(b, randomUUID(), 'b-entry', todayUtc())
+
+  // 墙未 closed 时不能离开
+  await expectCode(() => rpcLeaveClosedWall(a), 'wall_not_closed')
+  const fresh = await newUser()
+  await expectCode(() => rpcLeaveClosedWall(fresh), 'no_seat')
+
+  // a 行使销毁权：墙 closed，座位不释放（既有语义不变）
+  assert.deepEqual(await rpcCloseAndErase(a), {})
+  const afterClose = await rpcWallState(a)
+  assert.equal(afterClose.snapshot.state, 'closed')
+  assert.equal(afterClose.snapshot.seats.length, 2, 'close_and_erase 仍不释放座位')
+  assert.deepEqual(
+    (await rpcListEntries(b)).entries.map((entry) => entry.body),
+    ['b-entry'],
+    'a 的留言被删，b 的保留',
+  )
+
+  // a 离开：座位释放（保留历史行），旧 uid 零行 / no_seat
+  assert.deepEqual(await rpcLeaveClosedWall(a), {})
+  await expectCode(() => rpcWallState(a), 'no_seat')
+  assert.deepEqual(await rpcListEntries(a), { entries: [], has_more: false })
+  assert.equal((await asUser(a, async () => rows('select * from public.v_entry'))).length, 0)
+  await expectCode(() => rpcLeaveClosedWall(a), 'no_seat')
+
+  // a 之后可以建新墙；仍受一人一墙约束
+  const newWall = await rpcCreateWall(a, keyHash('leave-new'))
+  assert.equal(newWall.snapshot.state, 'nascent')
+  await expectCode(() => rpcCreateWall(a, keyHash('leave-again')), 'already_seated')
+
+  // 历史 seat 行保留：slot / joined_on 不变，released_at 非空
+  const released = await rows(
+    "select slot, joined_on::text as joined_on, released_at is not null as released from public.seat where dyad_id = $1 and slot = 'a'",
+    [dyadId],
+  )
+  assert.equal(released.length, 1)
+  assert.equal(released[0].slot, 'a')
+  assert.equal(released[0].joined_on, todayUtc())
+  assert.equal(released[0].released, true)
+
+  // 对方（仍 active）仍可读 closed 墙；seats 历史列表长度不变
+  const bState = await rpcWallState(b)
+  assert.equal(bState.snapshot.state, 'closed')
+  assert.equal(bState.snapshot.seats.length, 2)
+  assert.deepEqual(
+    (await rpcListEntries(b)).entries.map((entry) => entry.body),
+    ['b-entry'],
+  )
+
+  // 已释放座位的恢复密钥不能换回
+  const rescuer = await newUser()
+  assert.deepEqual(await rpcRebind(rescuer, hashA), { error: 'invalid_hash' })
+
+  // b 也离开：双方都不可读，留言清空，两个历史座位都标记 released
+  assert.deepEqual(await rpcLeaveClosedWall(b), {})
+  await expectCode(() => rpcWallState(b), 'no_seat')
+  assert.deepEqual(await rpcListEntries(b), { entries: [], has_more: false })
+  assert.equal(await scalar('select count(*)::int from public.entry where dyad_id = $1', [dyadId]), 0)
+  assert.equal(
+    await scalar('select count(*)::int from public.seat where dyad_id = $1 and released_at is not null', [dyadId]),
+    2,
+  )
+
+  // T6：活跃座位仍唯一（a 已在新墙在座，不能插入第二个 active 座位）
+  const otherHost = await newUser()
+  const otherWall = await rpcCreateWall(otherHost, keyHash('leave-t6'))
+  await expectForbidden(
+    () =>
+      db.query(
+        "insert into public.seat (dyad_id, slot, user_id, recovery_hash) values ($1::uuid, 'b', $2::uuid, decode($3, 'hex'))",
+        [otherWall.snapshot.dyad_id, a, keyHash('leave-dup')],
+      ),
+    /duplicate key|unique constraint/i,
+  )
+  // b 已离座（released 不阻塞新座位）→ 可以接受邀请重新在座
+  const bJoins = await rpcAcceptInvite(b, otherWall.snapshot.invite.token, keyHash('leave-b-join'))
+  assert.equal(bJoins.snapshot.state, 'open')
+  assert.equal(bJoins.snapshot.my_slot, 'b')
 })
 
 await check('分页：before_seq + limit 上限 120 + has_more', async () => {

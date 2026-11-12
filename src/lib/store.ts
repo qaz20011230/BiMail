@@ -57,6 +57,7 @@ export interface WallStore {
   boot(): Promise<void>
   retryBoot(): Promise<void>
   createNewWall(): Promise<void>
+  startNewWall(): Promise<void>
   sync(): Promise<void>
   loadOlder(): Promise<void>
   post(body: string): Promise<void>
@@ -99,6 +100,7 @@ export const wall = reactive<WallStore>({
   boot,
   retryBoot,
   createNewWall,
+  startNewWall,
   sync,
   loadOlder,
   post,
@@ -459,6 +461,38 @@ async function createNewWall(): Promise<void> {
   if (!wall.canCreateWall) return
   wall.canCreateWall = false
   await createWall()
+}
+
+/**
+ * closed 墙上的「再建一堵新墙」：
+ * 离开旧墙（硬删自己的留言 + 释放座位）→ 建新墙 → 恢复密钥屏。
+ * 未寄出的本地队列保留（A4：永不丢字），确认新墙后会按序补寄。
+ */
+async function startNewWall(): Promise<void> {
+  if (!backend || !wall.snapshot || wall.snapshot.state !== 'closed' || wall.busy) return
+  wall.busy = true
+  try {
+    try {
+      await backend.leaveClosedWall()
+    } catch (error) {
+      // 座位可能已被释放（例如服务端已完成释放）→ 仍允许继续建新墙
+      if (!(isBackendError(error) && error.code === 'no_seat')) throw error
+    }
+    // 旧墙的本地状态清零；队列保留
+    wall.snapshot = null
+    wall.entries = []
+    wall.notices = []
+    wall.inviteUrl = null
+    wall.errorLine = null
+    closedNoticed = false
+    removeKey(KEYS.lastSeen)
+    removeKey(KEYS.invite)
+    await createWall()
+  } catch (error) {
+    notice(isTransient(error) ? copy.offline : recoveryErrorLine(error))
+  } finally {
+    wall.busy = false
+  }
 }
 
 function confirmRecovery(): void {

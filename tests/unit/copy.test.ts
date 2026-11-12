@@ -38,6 +38,12 @@ describe('§7 文案字典逐字实现', () => {
     expect(copy.wallClosed).toBe('这堵墙已经停下。')
   })
 
+  it('closed 墙的新墙入口文案', () => {
+    expect(copy.words.newWall).toBe('再建一堵新墙')
+    expect(copy.newWallConfirm).toBe('开始新的一堵墙。这堵墙将不再可读。')
+    expect(copy.newWallWarnDelete).toBe('你的文字会从这堵墙删除，建议先导出。')
+  })
+
   it('设置面四行（顺序与文字）', () => {
     expect(copy.settingsRows).toEqual({
       viewKey: '查看恢复密钥',

@@ -16,12 +16,15 @@ import Composer from './Composer.vue'
 const streamEl = ref<HTMLElement | null>(null)
 const atBottom = ref(true)
 const freshSeq = ref(Number.MAX_SAFE_INTEGER)
+const newWallArmed = ref(false)
 
 const queued = computed(() => queuedViews.value)
 const mine = computed(() => wall.snapshot?.my_slot ?? 'a')
 const state = computed(() => wall.snapshot?.state ?? 'nascent')
 const isClosed = computed(() => state.value === 'closed')
 const derived = computed(() => (wall.snapshot ? derivedLines(wall.snapshot) : []))
+
+const myClosedEntries = computed(() => wall.entries.filter((entry) => entry.slot === mine.value).length)
 
 const emptyLine = computed(() => {
   if (!wall.snapshot || isClosed.value) return null
@@ -114,6 +117,11 @@ function anchorInitial(): void {
   el.scrollTop += targetRect.bottom - elRect.bottom + 16
   atBottom.value = isNearBottom(el)
   lastKnownScrollHeight = el.scrollHeight
+}
+
+function confirmNewWall(): void {
+  newWallArmed.value = false
+  void wall.startNewWall()
 }
 
 function latestSeq(entries: Entry[]): number {
@@ -257,6 +265,42 @@ onBeforeUnmount(() => {
         @open-settings="wall.openSettings()"
         @retract-queued="wall.retractQueued"
       />
+      <div v-if="state === 'closed'" class="closed-new-wall">
+        <template v-if="!newWallArmed">
+          <button
+            type="button"
+            class="word"
+            data-testid="new-wall-entry"
+            :disabled="wall.busy"
+            @click="newWallArmed = true"
+          >
+            {{ copy.words.newWall }}
+          </button>
+        </template>
+        <template v-else>
+          <p class="local-line">{{ copy.newWallConfirm }}</p>
+          <p v-if="myClosedEntries > 0" class="local-line">{{ copy.newWallWarnDelete }}</p>
+          <div class="closed-new-wall-actions">
+            <button
+              type="button"
+              class="word"
+              data-testid="new-wall-confirm"
+              :disabled="wall.busy"
+              @click="confirmNewWall"
+            >
+              {{ copy.words.confirm }}
+            </button>
+            <button
+              type="button"
+              class="word"
+              data-testid="new-wall-cancel"
+              @click="newWallArmed = false"
+            >
+              {{ copy.words.cancel }}
+            </button>
+          </div>
+        </template>
+      </div>
     </main>
     <Composer
       v-if="!isClosed"

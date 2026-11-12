@@ -7,6 +7,8 @@
  * - 邀请 token 服务端只存 SHA-256，明文只在创建响应里出现一次。
  * - 恢复哈希只以 64 位小写 hex（客户端 SHA-256）形式入库。
  * - entry.created_at / client_uuid 仅供排序与幂等，绝不出现在任何响应里。
+ * - seat.released_at：墙 closed 后主体可「离开」并释放座位（保留历史行）；
+ *   活跃座位由部分唯一索引保证一人一墙（A1），released 行不参与唯一性。
  */
 
 import { DatabaseSync } from 'node:sqlite'
@@ -34,6 +36,20 @@ const WRITTEN_ON_SKEW_DAYS = 2
 const REBIND_LIMIT = 5
 const REBIND_WINDOW = '-1 hour'
 
+const SEAT_TABLE_COLUMNS = `(
+  dyad_id TEXT NOT NULL REFERENCES dyad(id) ON DELETE CASCADE,
+  slot TEXT NOT NULL CHECK (slot IN ('a', 'b')),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  recovery_hash TEXT NOT NULL CHECK (length(recovery_hash) = 64),
+  joined_on TEXT NOT NULL,
+  released_at INTEGER,
+  PRIMARY KEY (dyad_id, slot)
+)`
+
+function seatTableSql(tableName, ifNotExists = false) {
+  return `CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}${tableName} ${SEAT_TABLE_COLUMNS}`
+}
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -54,15 +70,13 @@ CREATE TABLE IF NOT EXISTS dyad (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
--- user_id UNIQUE = A1「一人一墙」；ON DELETE RESTRICT = A4 的数据库级保护。
-CREATE TABLE IF NOT EXISTS seat (
-  dyad_id TEXT NOT NULL REFERENCES dyad(id) ON DELETE CASCADE,
-  slot TEXT NOT NULL CHECK (slot IN ('a', 'b')),
-  user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE RESTRICT,
-  recovery_hash TEXT NOT NULL CHECK (length(recovery_hash) = 64),
-  joined_on TEXT NOT NULL,
-  PRIMARY KEY (dyad_id, slot)
-);
+-- A1「一人一墙」= active 座位（released_at IS NULL）内 user_id 唯一（部分唯一索引）；
+-- ON DELETE RESTRICT = A4 的数据库级保护（历史座位同样阻挡删除）。
+-- released_at 非 null 表示已离开该墙：保留历史行，slot / joined_on 不变。
+${seatTableSql('seat', true)};
+
+CREATE UNIQUE INDEX IF NOT EXISTS seat_active_user_uidx
+  ON seat (user_id) WHERE released_at IS NULL;
 
 -- seq 严格单调（AUTOINCREMENT 不复用）；created_at/client_uuid 永不出库。
 CREATE TABLE IF NOT EXISTS entry (
@@ -161,6 +175,80 @@ function entryView(row) {
   }
 }
 
+function sqliteIdentifier(name) {
+  if (!/^[A-Za-z0-9_]+$/.test(name)) throw new Error('unexpected SQLite identifier')
+  return `"${name}"`
+}
+
+function hasTable(db, name) {
+  return Boolean(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name),
+  )
+}
+
+function tableColumns(db, name) {
+  return db
+    .prepare(`PRAGMA table_info(${sqliteIdentifier(name)})`)
+    .all()
+    .map((row) => row.name)
+}
+
+function hasSingleColumnUniqueIndex(db, table, column) {
+  const indexes = db.prepare(`PRAGMA index_list(${sqliteIdentifier(table)})`).all()
+  for (const index of indexes) {
+    if (index.unique !== 1 || index.origin !== 'u') continue
+    const columns = db
+      .prepare(`PRAGMA index_info(${sqliteIdentifier(index.name)})`)
+      .all()
+      .map((row) => row.name)
+    if (columns.length === 1 && columns[0] === column) return true
+  }
+  return false
+}
+
+/**
+ * 旧文件库迁移：seat.user_id 若仍是全局 UNIQUE（或缺少 released_at），
+ * 重建 seat 表并保留全部行（released_at = null），再建 active 部分唯一索引。
+ * 全新库 / 已迁移库为空操作。
+ */
+function migrateSeatSchema(db) {
+  if (!hasTable(db, 'seat')) return
+  const columns = tableColumns(db, 'seat')
+  const legacyUnique = hasSingleColumnUniqueIndex(db, 'seat', 'user_id')
+  if (columns.includes('released_at') && !legacyUnique) return
+
+  const releasedSource = columns.includes('released_at') ? 'released_at' : 'NULL'
+  db.exec('PRAGMA foreign_keys = OFF')
+  try {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.exec('DROP TABLE IF EXISTS seat__new')
+      db.exec(seatTableSql('seat__new'))
+      db.exec(
+        `INSERT INTO seat__new (dyad_id, slot, user_id, recovery_hash, joined_on, released_at)
+         SELECT dyad_id, slot, user_id, recovery_hash, joined_on, ${releasedSource} FROM seat`,
+      )
+      db.exec('DROP TABLE seat')
+      db.exec('ALTER TABLE seat__new RENAME TO seat')
+      db.exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS seat_active_user_uidx ON seat (user_id) WHERE released_at IS NULL',
+      )
+      db.exec('COMMIT')
+    } catch (error) {
+      try {
+        db.exec('ROLLBACK')
+      } catch {
+        /* 回滚失败时保留原始错误 */
+      }
+      throw error
+    }
+    const violations = db.prepare('PRAGMA foreign_key_check').all()
+    if (violations.length > 0) throw new Error('seat 表迁移后外键校验失败')
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON')
+  }
+}
+
 export class Store {
   #db
 
@@ -176,6 +264,7 @@ export class Store {
         /* WAL 不可用（只读介质等）时退化为普通日志，不影响契约 */
       }
     }
+    migrateSeatSchema(this.#db)
     this.#db.exec(SCHEMA)
   }
 
@@ -199,10 +288,11 @@ export class Store {
     }
   }
 
+  /** 当前 active 座位（已离开的墙不算在座）。 */
   #seatFor(userId) {
     return (
       this.#db
-        .prepare('SELECT dyad_id, slot FROM seat WHERE user_id = ?')
+        .prepare('SELECT dyad_id, slot FROM seat WHERE user_id = ? AND released_at IS NULL')
         .get(userId) ?? null
     )
   }
@@ -428,7 +518,7 @@ export class Store {
     }
     return this.#tx(() => {
       const target = this.#db
-        .prepare('SELECT dyad_id, slot FROM seat WHERE recovery_hash = ?')
+        .prepare('SELECT dyad_id, slot FROM seat WHERE recovery_hash = ? AND released_at IS NULL')
         .get(recoveryHash)
       if (!target) throw new HttpError(400, 'invalid_hash')
       if (this.#dyadState(target.dyad_id) === 'closed') throw new HttpError(409, 'wall_closed')
@@ -437,6 +527,27 @@ export class Store {
         .run(userId, target.dyad_id, target.slot)
       return this.#snapshot(target)
     })
+  }
+
+  /**
+   * 离开已关闭的墙：硬删自己 slot 的留言，标记 released_at（保留历史座位行）。
+   * 之后 create_wall 可用；活跃墙仍一人一墙（部分唯一索引）。
+   */
+  leaveClosedWall(userId) {
+    const seat = this.#seatFor(userId)
+    if (!seat) throw new HttpError(409, 'no_seat')
+    if (this.#dyadState(seat.dyad_id) !== 'closed') {
+      throw new HttpError(409, 'wall_not_closed')
+    }
+    this.#tx(() => {
+      this.#db
+        .prepare('DELETE FROM entry WHERE dyad_id = ? AND slot = ?')
+        .run(seat.dyad_id, seat.slot)
+      this.#db
+        .prepare('UPDATE seat SET released_at = ? WHERE dyad_id = ? AND slot = ?')
+        .run(Date.now(), seat.dyad_id, seat.slot)
+    })
+    return {}
   }
 
   closeAndErase(userId) {

@@ -39,8 +39,14 @@ export interface Backend {
   /** 注销本主体除本次以外的全部匿名会话。 */
   revokeOtherSessions(): Promise<void>
 
-  /** 销毁自己的全部留言，墙置 closed。 */
+  /** 销毁自己的全部留言，墙置 closed（不释放座位）。 */
   closeAndErase(): Promise<void>
+
+  /**
+   * 离开一堵已经 closed 的墙：硬删除自己的留言并释放座位（seat.released_at），
+   * 之后当前身份可以建立新墙。非 closed 墙抛 wall_not_closed；无座位抛 no_seat。
+   */
+  leaveClosedWall(): Promise<void>
 }
 
 export const ENTRY_PAGE_SIZE = 120

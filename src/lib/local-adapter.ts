@@ -123,4 +123,8 @@ export class LocalBackend implements Backend {
   async closeAndErase(): Promise<void> {
     await request<Record<string, never>>('/rpc/close_and_erase')
   }
+
+  async leaveClosedWall(): Promise<void> {
+    await request<Record<string, never>>('/rpc/leave_closed_wall')
+  }
 }

@@ -22,6 +22,9 @@ export const copy = {
   lostCredential: '需要你的钥匙才能回到这堵墙。',
   // 实现补充（§8.6）：首次抵达与"清空设备存储"无法区分，故同屏给出建墙入口。
   noWallYet: '还没有墙，就先建一堵。',
+  // 已 closed 的墙：离开旧墙并建新墙（§8 决策）
+  newWallConfirm: '开始新的一堵墙。这堵墙将不再可读。',
+  newWallWarnDelete: '你的文字会从这堵墙删除，建议先导出。',
   seatEstablished: (monthDay: string) => `${monthDay}，两位笔友到齐。`,
   destroyConfirm: '你的文字将被删除，这堵墙会停下。不可恢复。',
   wallClosed: '这堵墙已经停下。',
@@ -39,6 +42,7 @@ export const copy = {
     back: '回到墙',
     retry: '重试',
     createWall: '建一堵新墙',
+    newWall: '再建一堵新墙',
   },
 
   // —— 身份编码（§4.3）：屏幕阅读器前缀 ——

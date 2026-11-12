@@ -7,6 +7,7 @@ export type BackendErrorCode =
   | 'invite_consumed'
   | 'invite_unknown'
   | 'wall_closed'
+  | 'wall_not_closed'
   | 'invalid_body'
   | 'invalid_uuid'
   | 'invalid_hash'
@@ -47,6 +48,7 @@ export const KNOWN_BACKEND_ERRORS: readonly BackendErrorCode[] = [
   'invite_consumed',
   'invite_unknown',
   'wall_closed',
+  'wall_not_closed',
   'invalid_body',
   'invalid_uuid',
   'invalid_hash',

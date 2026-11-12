@@ -52,6 +52,7 @@ npm run check:copy     # 禁用词 / 结构禁令扫描
 | `POST /api/rpc/rebind_seat` | `{ recovery_hash }` | `{ snapshot }` |
 | `POST /api/rpc/revoke_other_sessions` | `{}` | `{}` |
 | `POST /api/rpc/close_and_erase` | `{}` | `{}` |
+| `POST /api/rpc/leave_closed_wall` | `{}` | `{}` |
 
 `WallSnapshot` / `Entry` 形状严格按 `src/types.ts`（snake_case；`seq` 为 number）。
 `snapshot.invite` 只在 `state==='nascent' && my_slot==='a'` 时非空，含 `{token, expires_on}`。
@@ -67,6 +68,7 @@ npm run check:copy     # 禁用词 / 结构禁令扫描
 - `rebind_seat`：调用者已在座 → 409 `already_seated`；hash 格式错或无匹配 → 400 `invalid_hash`；墙 closed → 409 `wall_closed`；**不改变 slot / joined_on**，只换 `user_id`；旧匿名会话之后 `list_entries` 零行、`wall_state` 报 `no_seat`；限流：同一调用者 1 小时 5 次，超出 429 `throttled`（限流按调用者记录，失败与成功都计）。
   > Supabase/SQL 实现的例外：`rebind_seat` 业务错误以 **HTTP 200 + `{"error":"<code>"}`** 返回（其余 7 个 RPC 仍用 `raise exception '<code>'`）。原因：PostgreSQL raise 会回滚事务，连提前写入的限流计数也回滚，导致「失败也计入限流」无法实现。客户端（`src/lib/supabase.ts`）对 200 响应里的 `error` 与 4xx 的 `message` 都做同一错误码映射。
 - `close_and_erase`：无座位 → 409 `no_seat`；硬删除**自己 slot** 的全部 entry、dyad 置 closed、删除 invite；**不释放座位**、不删对方 entry；重复调用幂等成功。
+- `leave_closed_wall`：仅用于已 closed 的墙。无活跃座位 → 409 `no_seat`；墙不是 closed → 409 `wall_not_closed`；硬删除自己 slot 的 entry、`seat.released_at = now()`（保留 seat 历史行与 slot/joined_on，不删对方 entry）；重复调用 → `no_seat`。释放后当前身份可以 `create_wall`（活跃座位仍唯一）。
 - `revoke_other_sessions`：删除该 user 除当前 access token 外的全部会话；幂等。
 
 **数据层**（SQLite，`node:sqlite`）：`users / sessions / dyad / seat / entry / invite / rebind_attempt`。外键：`seat.user_id → users(id) ON DELETE RESTRICT`（A4 的数据库级保护）；`entry` 对 `dyad`、`seat(dyad_id,slot)` 外键；`unique(seat.user_id)`；`unique(entry.dyad_id, entry.client_uuid)`；`dyad.state CHECK`；`entry.slot CHECK`。启动时 `PRAGMA foreign_keys=ON`。
@@ -80,12 +82,13 @@ npm run check:copy     # 禁用词 / 结构禁令扫描
 - `invite(dyad_id pk references dyad, token_hash bytea unique, expires_on date, consumed_at timestamptz)`
 - 视图：`v_entry(id,seq,slot,body,written_on)`、`v_seat(slot,joined_on)`（`security_invoker = true`；**不得含 created_at/client_uuid/dyad_id**）
 - RLS：`entry` 只读策略 `dyad_id = my_dyad()`；`seat` 只读策略 `dyad_id = my_dyad()`；无 insert/update/delete 策略；`revoke all ... from anon, authenticated`，仅 `grant select on v_entry, v_seat`、`grant execute on 白名单函数`。
-- `security definer` RPC（函数内 `set search_path = public, pg_temp`）：`create_wall(recovery_hash bytea)`, `accept_invite(token text, recovery_hash bytea)`, `wall_state()`, `list_entries(before_seq bigint, page_limit int)`, `post_entry(client_uuid uuid, body text, written_on date)`, `rebind_seat(recovery_hash bytea)`, `revoke_other_sessions()`, `close_and_erase()`。返回 JSON 形状与 §3 完全一致；业务错误用 `raise exception '<code>'`（消息即错误码，客户端据此映射）。
+- `security definer` RPC（函数内 `set search_path = public, pg_temp`）：`create_wall(recovery_hash bytea)`, `accept_invite(token text, recovery_hash bytea)`, `wall_state()`, `list_entries(before_seq bigint, page_limit int)`, `post_entry(client_uuid uuid, body text, written_on date)`, `rebind_seat(recovery_hash bytea)`, `revoke_other_sessions()`, `close_and_erase()`, `leave_closed_wall()`。返回 JSON 形状与 §3 完全一致；业务错误用 `raise exception '<code>'`（消息即错误码，客户端据此映射）。
 - 恢复哈希：`sha256(convert_to(lower(hex), 'UTF8'))` 由客户端计算并传入（bytea，64 hex）；`rebind_seat` 直接比对存储哈希，**服务端不接触明文钥匙**。
 - `seat.user_id uuid references auth.users(id) on delete restrict`（A4）。匿名清理被外键阻止。
 - `rebind` 限流表 + 每小时 5 次。
 - 邀请：`token_hash = sha256(token)`，7 天，单次消费。
 - `close_and_erase`：`delete from entry where dyad_id=my_dyad() and slot=my_slot()`（唯一删除例外），`update dyad set state='closed'`，删除 invite。
+- `leave_closed_wall`：仅 closed 墙；`delete from entry ... slot=my_slot()`，`update seat set released_at=now()`。`seat.user_id` 的唯一性改为部分唯一索引 `where released_at is null`（活跃座位一人一墙；closed 历史座位可保留多条）。
 - 迁移文件用 `supabase/migrations/0001_init.sql`（可拆多个，按文件名排序）。所有 `create` 写成幂等友好（`if not exists` 或单次迁移由工具保证；测试会按序执行）。
 
 **已在实现中确认的 PostgreSQL 语义偏离（经 Lead 裁定，测试锁定）**：
@@ -224,6 +227,7 @@ exportFilename(now?: Date): string       // copy.exportFileName(localISODate(now
 5. **恢复密钥本地保管**：钥匙在生成时即存本设备 localStorage（`KEYS.recoveryKey`），以便设置面"查看恢复密钥"可再次展示（服务端只有哈希，无法回显）。设备无副本时如实显示 `copy.recoveryKeyMissing`。
 6. **凭据失效屏**：无座位、无邀请、本设备无钥匙时进入（与"首次抵达"不可区分，故同屏给出建墙入口；见 §8.1）；提交合法钥匙→`rebind_seat`；成功回墙，失败一行 `copy.recoveryKeyWrong`。若本设备有钥匙，boot 时自动尝试换回座位（零点击）；自动换回失败（旧钥匙残留/墙已销毁/数据库重置）则进入凭据屏并**给出建墙入口**（此时当前身份已无座位，不给入口会造成无路可走的死路）。座位于运行中丢失（如其他设备换座）时 sync 报 `no_seat` → 凭据屏（同样给建墙入口；旧墙仍可输入钥匙找回）。
 7. **邀请错误**：无墙时错误行单独成屏（`screen='invite-error'`，仍是一行文字）；已有墙时以流尾 notice 呈现。
+8. **closed 墙的离开与新墙**（2026-11-12 增加）：已 closed 的墙在流尾显示一行「再建一堵新墙」；确认后调用 `leave_closed_wall`（删除自己的留言并释放座位）→ 进入新墙的恢复密钥屏。A1 按「活跃墙」解释：一个匿名身份最多拥有一堵活跃墙；closed 墙经显式离开后不再占用身份，seat 历史行保留（slot/joined_on 不变），不新增会话列表或界面。两种状态都必须先导出再离开的提示由文案给出。
 8. **日期键**：`written_on` 用写作者本地日期；服务端只做 ±2 日钳制。渲染不做时区换算。
 9. **首访定位**：`last_seen_seq` 不存在（首次进入）→ 视图定位到最早一条（第一封信日期组首）；存在 → 定位到 `last_seen_seq` 那一条。
 

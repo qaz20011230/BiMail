@@ -7,6 +7,9 @@
 
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { after, before, it } from 'node:test'
 import { createApi, sleep, startBackend } from './helpers.mjs'
@@ -69,6 +72,19 @@ function openDb(dbFile) {
   db.exec('PRAGMA busy_timeout = 5000')
   return db
 }
+
+/** 0003 之前 local 后端的 seat 表结构（user_id 全局 UNIQUE、无 released_at）。 */
+const LEGACY_SCHEMA = `
+CREATE TABLE users (id TEXT PRIMARY KEY, created_on TEXT NOT NULL DEFAULT (date('now')));
+CREATE TABLE sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, access_hash TEXT NOT NULL UNIQUE, refresh_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE TABLE dyad (id TEXT PRIMARY KEY, state TEXT NOT NULL DEFAULT 'nascent' CHECK (state IN ('nascent','open','closed')), created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE TABLE seat (dyad_id TEXT NOT NULL REFERENCES dyad(id) ON DELETE CASCADE, slot TEXT NOT NULL CHECK (slot IN ('a','b')), user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE RESTRICT, recovery_hash TEXT NOT NULL CHECK (length(recovery_hash)=64), joined_on TEXT NOT NULL, PRIMARY KEY (dyad_id, slot));
+CREATE TABLE entry (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, dyad_id TEXT NOT NULL REFERENCES dyad(id) ON DELETE CASCADE, slot TEXT NOT NULL CHECK (slot IN ('a','b')), body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 8000), written_on TEXT NOT NULL, client_uuid TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), UNIQUE (dyad_id, client_uuid), FOREIGN KEY (dyad_id, slot) REFERENCES seat(dyad_id, slot));
+CREATE INDEX entry_dyad_seq ON entry (dyad_id, seq);
+CREATE TABLE invite (dyad_id TEXT PRIMARY KEY REFERENCES dyad(id) ON DELETE CASCADE, token_hash TEXT NOT NULL UNIQUE, expires_on TEXT NOT NULL, consumed_at TEXT);
+CREATE TABLE rebind_attempt (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+CREATE INDEX rebind_attempt_user_time ON rebind_attempt (user_id, created_at);
+`
 
 // —————————————————————————————————————————————————————————————
 // 健康检查 / 传输层
@@ -606,6 +622,199 @@ it('close_and_erase：无座位 409 no_seat', async () => {
   const response = await api.closeAndErase(stranger.access_token)
   assert.equal(response.status, 409)
   assert.deepEqual(response.json, { error: 'no_seat' })
+})
+
+// —————————————————————————————————————————————————————————————
+// 离开已关闭的墙（0003 / leave_closed_wall）
+// —————————————————————————————————————————————————————————————
+
+it('leave_closed_wall：未关闭 409 wall_not_closed；closed 后离开释放座位、可建新墙、对方仍可读', async () => {
+  const { creator, creatorHash, acceptor } = await pairedWall()
+  assert.equal((await post(creator.access_token, 'a 的信')).status, 200)
+  assert.equal((await post(acceptor.access_token, 'b 的信')).status, 200)
+
+  const before = await api.leaveClosedWall(creator.access_token)
+  assert.equal(before.status, 409)
+  assert.deepEqual(before.json, { error: 'wall_not_closed' })
+
+  // close_and_erase 语义不变：墙 closed，座位不释放
+  assert.equal((await api.closeAndErase(creator.access_token)).status, 200)
+  const afterClose = await api.wallState(creator.access_token)
+  assert.equal(afterClose.status, 200)
+  assert.equal(afterClose.json.snapshot.state, 'closed')
+  assert.equal(afterClose.json.snapshot.seats.length, 2, 'close_and_erase 仍不释放座位')
+
+  // 离开：释放座位（保留历史行），旧登录凭据之后零行 / no_seat
+  const leave = await api.leaveClosedWall(creator.access_token)
+  assert.equal(leave.status, 200)
+  assert.deepEqual(leave.json, {})
+  const leftState = await api.wallState(creator.access_token)
+  assert.equal(leftState.status, 409)
+  assert.deepEqual(leftState.json, { error: 'no_seat' })
+  assert.deepEqual((await api.listEntries(creator.access_token)).json, {
+    entries: [],
+    has_more: false,
+  })
+  const rejectWrite = await post(creator.access_token, '已离开不能写')
+  assert.equal(rejectWrite.status, 409)
+  assert.deepEqual(rejectWrite.json, { error: 'no_seat' })
+  const repeat = await api.leaveClosedWall(creator.access_token)
+  assert.equal(repeat.status, 409)
+  assert.deepEqual(repeat.json, { error: 'no_seat' })
+
+  // 已释放座位的恢复密钥不能再换回
+  const rescuer = await anonymousSession()
+  const staleRebind = await api.rebindSeat(rescuer.access_token, creatorHash)
+  assert.equal(staleRebind.status, 400)
+  assert.deepEqual(staleRebind.json, { error: 'invalid_hash' })
+
+  // 可以建立新墙；仍受一人一墙约束
+  const newWall = await api.createWall(creator.access_token, sha256(`leave-new-${randomUUID()}`))
+  assert.equal(newWall.status, 200, JSON.stringify(newWall.json))
+  assert.equal(newWall.json.snapshot.state, 'nascent')
+  assert.equal(newWall.json.snapshot.my_slot, 'a')
+  const newAgain = await api.createWall(creator.access_token, sha256('leave-again'))
+  assert.equal(newAgain.status, 409)
+  assert.deepEqual(newAgain.json, { error: 'already_seated' })
+
+  // 对方仍可读 closed 墙；seats 仍含两位笔友的历史座位
+  const partnerState = await api.wallState(acceptor.access_token)
+  assert.equal(partnerState.status, 200)
+  assert.equal(partnerState.json.snapshot.state, 'closed')
+  assert.equal(partnerState.json.snapshot.seats.length, 2)
+  const partnerPage = await api.listEntries(acceptor.access_token)
+  assert.deepEqual(
+    partnerPage.json.entries.map((entry) => entry.body),
+    ['b 的信'],
+  )
+
+  // T6：创建者已在新墙在座 → 不能接受别墙邀请
+  const seatedAccept = await api.acceptInvite(
+    creator.access_token,
+    newWall.json.snapshot.invite.token,
+    sha256('leave-x'),
+  )
+  assert.equal(seatedAccept.status, 409)
+  assert.deepEqual(seatedAccept.json, { error: 'already_seated' })
+
+  // 对方离开后（released 不阻塞新座位）→ 可以接受创建者新墙邀请重新在座
+  assert.equal((await api.leaveClosedWall(acceptor.access_token)).status, 200)
+  assert.deepEqual((await api.wallState(acceptor.access_token)).json, { error: 'no_seat' })
+  const rejoin = await api.acceptInvite(
+    acceptor.access_token,
+    newWall.json.snapshot.invite.token,
+    sha256(`leave-b-${randomUUID()}`),
+  )
+  assert.equal(rejoin.status, 200, JSON.stringify(rejoin.json))
+  assert.equal(rejoin.json.snapshot.state, 'open')
+  assert.equal(rejoin.json.snapshot.my_slot, 'b')
+})
+
+it('leave_closed_wall：无鉴权 401 unauthorized、无座位 409 no_seat', async () => {
+  const unauth = await api.post('/api/rpc/leave_closed_wall', { body: {} })
+  assert.equal(unauth.status, 401)
+  assert.deepEqual(unauth.json, { error: 'unauthorized' })
+
+  const stranger = await anonymousSession()
+  const noSeat = await api.leaveClosedWall(stranger.access_token)
+  assert.equal(noSeat.status, 409)
+  assert.deepEqual(noSeat.json, { error: 'no_seat' })
+})
+
+it('旧版 SQLite 文件库启动时迁移 seat：数据保留 + released_at + active 部分唯一索引', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bimail-legacy-'))
+  const dbFile = join(dir, 'bimail.db')
+  const userId = randomUUID()
+  const partnerId = randomUUID()
+  const dyadId = randomUUID()
+  const accessToken = `legacy-access-${randomUUID()}`
+  const today = todayUtc()
+
+  const legacy = new DatabaseSync(dbFile)
+  try {
+    legacy.exec(LEGACY_SCHEMA)
+    legacy.prepare('INSERT INTO users (id) VALUES (?)').run(userId)
+    legacy.prepare('INSERT INTO users (id) VALUES (?)').run(partnerId)
+    legacy
+      .prepare('INSERT INTO sessions (user_id, access_hash, refresh_hash) VALUES (?, ?, ?)')
+      .run(userId, sha256(accessToken), sha256(`refresh-${accessToken}`))
+    legacy.prepare("INSERT INTO dyad (id, state) VALUES (?, 'open')").run(dyadId)
+    legacy
+      .prepare('INSERT INTO seat (dyad_id, slot, user_id, recovery_hash, joined_on) VALUES (?, ?, ?, ?, ?)')
+      .run(dyadId, 'a', userId, sha256('legacy-a'), today)
+    legacy
+      .prepare('INSERT INTO seat (dyad_id, slot, user_id, recovery_hash, joined_on) VALUES (?, ?, ?, ?, ?)')
+      .run(dyadId, 'b', partnerId, sha256('legacy-b'), today)
+    for (const slot of ['a', 'b']) {
+      legacy
+        .prepare(
+          'INSERT INTO entry (id, dyad_id, slot, body, written_on, client_uuid) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(randomUUID(), dyadId, slot, `legacy-${slot}`, today, randomUUID())
+    }
+  } finally {
+    legacy.close()
+  }
+
+  const legacyBackend = await startBackend({ dbFile })
+  try {
+    const legacyApi = createApi(legacyBackend.baseUrl)
+    const state = await legacyApi.wallState(accessToken)
+    assert.equal(state.status, 200, JSON.stringify(state.json))
+    assert.equal(state.json.snapshot.state, 'open')
+    assert.equal(state.json.snapshot.seats.length, 2)
+    const page = await legacyApi.listEntries(accessToken)
+    assert.deepEqual(
+      page.json.entries.map((entry) => entry.body),
+      ['legacy-a', 'legacy-b'],
+    )
+    // 旧库可直接走 close → leave → 新建墙
+    assert.equal((await legacyApi.closeAndErase(accessToken)).status, 200)
+    assert.equal((await legacyApi.leaveClosedWall(accessToken)).status, 200)
+    const created = await legacyApi.createWall(accessToken, sha256('legacy-new'))
+    assert.equal(created.status, 200, JSON.stringify(created.json))
+    assert.equal(created.json.snapshot.state, 'nascent')
+  } finally {
+    await legacyBackend.stop()
+  }
+
+  const check = openDb(dbFile)
+  try {
+    const columns = check.prepare('PRAGMA table_info(seat)').all().map((row) => row.name)
+    assert.ok(columns.includes('released_at'), '迁移后 seat 必须有 released_at')
+    const indexes = check.prepare('PRAGMA index_list(seat)').all()
+    assert.ok(
+      indexes.some(
+        (index) => index.name === 'seat_active_user_uidx' && index.unique === 1 && index.partial === 1,
+      ),
+      '迁移后必须有 active 部分唯一索引',
+    )
+    assert.equal(check.prepare('PRAGMA foreign_key_check').all().length, 0)
+    const seatRows = check.prepare('SELECT slot, released_at FROM seat ORDER BY dyad_id, slot').all()
+    assert.equal(seatRows.length, 3, '旧墙 2 个历史座位 + 新墙 1 个 active 座位')
+    assert.equal(seatRows.filter((row) => row.released_at !== null).length, 1)
+    const bodies = check
+      .prepare('SELECT body FROM entry ORDER BY seq')
+      .all()
+      .map((row) => row.body)
+    assert.deepEqual(bodies, ['legacy-b'], 'close_and_erase 删除自己的留言，对方的保留')
+
+    // active 部分唯一索引生效：同一主体不能同时拥有两个 active 座位
+    const otherDyad = randomUUID()
+    check.prepare("INSERT INTO dyad (id, state) VALUES (?, 'nascent')").run(otherDyad)
+    assert.throws(
+      () =>
+        check
+          .prepare(
+            'INSERT INTO seat (dyad_id, slot, user_id, recovery_hash, joined_on) VALUES (?, ?, ?, ?, ?)',
+          )
+          .run(otherDyad, 'a', userId, sha256('legacy-dup'), today),
+      /UNIQUE|constraint/i,
+    )
+  } finally {
+    check.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 // —————————————————————————————————————————————————————————————
