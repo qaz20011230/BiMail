@@ -185,26 +185,28 @@ describe('LostKeyScreen', () => {
 })
 
 describe('SettingsView', () => {
-  it('标题 + 四行固定顺序 + 回到墙；无其他任何控件', () => {
+  it('标题 + 五行固定顺序 + 回到墙；无其他任何控件', () => {
     const wrapper = mount(SettingsView, { props: { recoveryKey: null } })
     expect(wrapper.find('.surface--settings').exists()).toBe(true)
     expect(wrapper.get('.settings-title').text()).toBe(copy.settingsTitle)
 
     const rows = wrapper.findAll('.settings-row')
-    expect(rows.map((row) => row.text())).toEqual([
+    expect(rows[0].text()).toMatch(new RegExp(`^${copy.settingsRows.theme}：(亮色|暗色)$`))
+    expect(rows.slice(1).map((row) => row.text())).toEqual([
       copy.settingsRows.viewKey,
       copy.settingsRows.exportAll,
       copy.settingsRows.revokeOthers,
       copy.settingsRows.destroy,
     ])
-    expect(rows[0].attributes('data-testid')).toBe('settings-view-key')
-    expect(rows[1].attributes('data-testid')).toBe('settings-export')
-    expect(rows[2].attributes('data-testid')).toBe('settings-revoke')
-    expect(rows[3].attributes('data-testid')).toBe('settings-destroy')
+    expect(rows[0].attributes('data-testid')).toBe('settings-theme')
+    expect(rows[1].attributes('data-testid')).toBe('settings-view-key')
+    expect(rows[2].attributes('data-testid')).toBe('settings-export')
+    expect(rows[3].attributes('data-testid')).toBe('settings-revoke')
+    expect(rows[4].attributes('data-testid')).toBe('settings-destroy')
     expect(wrapper.get('[data-testid="settings-close"]').text()).toBe(copy.words.back)
 
-    // 空态：四行 + 回到墙，共 5 个按钮；无输入框、无链接。
-    expect(wrapper.findAll('button')).toHaveLength(5)
+    // 空态：五行 + 回到墙，共 6 个按钮；无输入框、无链接。
+    expect(wrapper.findAll('button')).toHaveLength(6)
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.find('textarea').exists()).toBe(false)
     expect(wrapper.find('a').exists()).toBe(false)
@@ -228,7 +230,7 @@ describe('SettingsView', () => {
     const wrapper = mount(SettingsView, { props: { recoveryKey: '' } })
     expect(wrapper.get('.recovery-key').text()).toBe('')
     expect(wrapper.text()).not.toContain(copy.recoveryKeyMissing)
-    expect(wrapper.findAll('button')).toHaveLength(5)
+    expect(wrapper.findAll('button')).toHaveLength(6)
   })
 
   it('查看钥匙：点击展开内联二次确认；取消不 emit，确认 emit confirm-key，回传后展示', async () => {
@@ -239,7 +241,7 @@ describe('SettingsView', () => {
     expect(wrapper.get('.settings-actions').findAll('button').map((button) => button.text())).toEqual(
       [copy.words.confirm, copy.words.cancel],
     )
-    expect(wrapper.findAll('button')).toHaveLength(7)
+    expect(wrapper.findAll('button')).toHaveLength(8)
 
     await wrapper.get('[data-testid="settings-view-key-cancel"]').trigger('click')
     expect(wrapper.text()).not.toContain(copy.keyRevealConfirm)

@@ -9,6 +9,7 @@ export const KEYS = {
   firstCommit: 'bimail.first_commit_done',
   pendingRecovery: 'bimail.pending_recovery',
   invite: 'bimail.invite',
+  theme: 'bimail.theme',
 } as const
 
 function safeGet(key: string): string | null {

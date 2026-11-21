@@ -26,7 +26,7 @@ function readBlock(startPattern) {
 }
 
 const light = readBlock(':root {') // 首个 :root
-const dark = readBlock('@media (prefers-color-scheme: dark)')
+const dark = readBlock(":root[data-theme='dark']")
 
 function rgb(hex) {
   const value = hex.replace('#', '')

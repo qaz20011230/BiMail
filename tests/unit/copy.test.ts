@@ -52,13 +52,16 @@ describe('§7 文案字典逐字实现', () => {
     expect(copy.newWallWarnDelete).toBe('你的文字会从这堵墙删除，建议先导出。')
   })
 
-  it('设置面四行（顺序与文字）', () => {
+  it('设置面五行（顺序与文字）', () => {
     expect(copy.settingsRows).toEqual({
+      theme: '外观',
       viewKey: '查看恢复密钥',
       exportAll: '导出全部文字',
       revokeOthers: '让其他设备离开',
       destroy: '离开并销毁我的文字',
     })
+    expect(copy.themeLight).toBe('亮色')
+    expect(copy.themeDark).toBe('暗色')
   })
 })
 

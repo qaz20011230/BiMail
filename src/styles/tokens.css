@@ -1,7 +1,7 @@
 /* 设计令牌。与 liang.world 同一套品牌色：白纸 + 深灰墨 + 经典蓝强调（#0066CC）。 */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --paper: #ffffff;
   --ink-mine: #1a1a1a;
@@ -34,13 +34,13 @@
   --focus-ring: 1px solid var(--accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #101214;
-    --ink-mine: #f2f2f2;
-    --ink-theirs: #d6d6d6;
-    --ink-faint: #a3a9b0;
-    --accent: #66a3ff;
-    --accent-hover: #8ab8ff;
-  }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #101214;
+  --ink-mine: #f2f2f2;
+  --ink-theirs: #d6d6d6;
+  --ink-faint: #a3a9b0;
+  --accent: #66a3ff;
+  --accent-hover: #8ab8ff;
 }

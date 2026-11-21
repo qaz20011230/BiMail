@@ -61,14 +61,18 @@ export const copy = {
   recoveryKeyMissing: '这台设备没有钥匙的副本。',
   recoveryKeyWrong: '这把钥匙不对。',
 
-  // —— 设置面（§3.7 四行） ——
+  // —— 设置面（§3.7 五行） ——
   settingsTitle: '设置',
   settingsRows: {
+    theme: '外观',
     viewKey: '查看恢复密钥',
     exportAll: '导出全部文字',
     revokeOthers: '让其他设备离开',
     destroy: '离开并销毁我的文字',
   },
+  themeLight: '亮色',
+  themeDark: '暗色',
+  themeSwitchAria: (label: string) => `外观：${label}，点击切换`,
   keyRevealConfirm: '再次确认：现在显示这把钥匙。',
 
   // —— 设置动作结果（流内一行文字） ——

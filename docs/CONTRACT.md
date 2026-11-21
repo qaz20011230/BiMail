@@ -198,11 +198,12 @@ exportFilename(now?: Date): string       // copy.exportFileName(localISODate(now
 - `.surface.surface--lost`：居中行 `copy.lostCredential`；`allowCreate` 时另起一行 `copy.noWallYet` 与词 `建一堵新墙`（`data-testid="create-wall"`，emit `create`）；`<input class="key-input" data-testid="key-input" autocapitalize="characters" autocomplete="off" spellcheck="false">`；非空时出现词 `进入`（`data-testid="key-submit"`）。Enter 提交（输入法组合中不提交）。提交前 `normalize` + `isPlausible`，不合法显示 `copy.recoveryKeyWrong` 行且不 emit；合法则 emit **规范化后的原始钥匙字符串**（父组件负责 `recoveryHash` 并存入本设备）。`busy` 时禁用输入与词。
 
 `SettingsView.vue`：props `{ recoveryKey: string | null, notices?: string[] }`；emits `{ (e:'close'):void; (e:'confirm-key'):void; (e:'export'):void; (e:'revoke-others'):void; (e:'destroy'):void }`。
-- `.surface.surface--settings`：标题 `copy.settingsTitle`；四行（顺序固定）：
-  1. `copy.settingsRows.viewKey`（`data-testid="settings-view-key"`）：点击后展开一行 `copy.keyRevealConfirm` + 词 `确认`/`取消`；确认后 emit `confirm-key`，父组件传回 `recoveryKey` 后以 `.recovery-key` 展示（**不再自动隐藏**）；`recoveryKey===null` 显示 `copy.recoveryKeyMissing`。
-  2. `copy.settingsRows.exportAll`（`data-testid="settings-export"`）→ emit export。
-  3. `copy.settingsRows.revokeOthers`（`data-testid="settings-revoke"`）：展开 `copy.revokeConfirm` + 确认/取消 → emit revoke-others。
-  4. `copy.settingsRows.destroy`（`data-testid="settings-destroy"`）：展开 `copy.destroyConfirm` + 确认/取消 → emit destroy。
+- `.surface.surface--settings`：标题 `copy.settingsTitle`；五行（顺序固定）：
+  1. `copy.settingsRows.theme`（`data-testid="settings-theme"`）：显示「外观：亮色/暗色」，点击立即在亮/暗之间切换；`copy.themeLight`/`copy.themeDark`，持久化键 `bimail.theme`。
+  2. `copy.settingsRows.viewKey`（`data-testid="settings-view-key"`）：点击后展开一行 `copy.keyRevealConfirm` + 词 `确认`/`取消`；确认后 emit `confirm-key`，父组件传回 `recoveryKey` 后以 `.recovery-key` 展示（**不再自动隐藏**）；`recoveryKey===null` 显示 `copy.recoveryKeyMissing`。
+  3. `copy.settingsRows.exportAll`（`data-testid="settings-export"`）→ emit export。
+  4. `copy.settingsRows.revokeOthers`（`data-testid="settings-revoke"`）：展开 `copy.revokeConfirm` + 确认/取消 → emit revoke-others。
+  5. `copy.settingsRows.destroy`（`data-testid="settings-destroy"`）：展开 `copy.destroyConfirm` + 确认/取消 → emit destroy。
 - `notices` 逐行 `.local-line`；底部词 `copy.words.back`（`data-testid="settings-close"`）emit close。无其他任何控件。
 
 ## 6. 样式契约（Lead 的 CSS 保证以下类名存在）

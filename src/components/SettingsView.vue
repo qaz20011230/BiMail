@@ -5,8 +5,9 @@
  * 无弹窗、无 Toast（A5）。动作结果以 props.notices 的逐行本地语呈现。
  */
 
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { copy } from '../copy'
+import { currentTheme, setTheme, type Theme } from '../lib/theme'
 
 type RowId = 'viewKey' | 'revoke' | 'destroy'
 
@@ -23,11 +24,19 @@ const emit = defineEmits<{
 }>()
 
 const openRow = ref<RowId | null>(null)
+const theme = ref<Theme>(currentTheme())
+const themeLabel = computed(() => (theme.value === 'dark' ? copy.themeDark : copy.themeLight))
+
+function toggleTheme(): void {
+  const next: Theme = theme.value === 'dark' ? 'light' : 'dark'
+  setTheme(next)
+  theme.value = next
+}
 
 onMounted(() => {
   // 键盘进入设置面时，焦点不应掉回文档顶部。
   void nextTick(() => {
-    document.querySelector<HTMLElement>('[data-testid="settings-view-key"]')?.focus()
+    document.querySelector<HTMLElement>('[data-testid="settings-theme"]')?.focus()
   })
 })
 
@@ -58,6 +67,18 @@ function confirmDestroy(): void {
 <template>
   <section class="surface surface--settings">
     <h1 class="settings-title">{{ copy.settingsTitle }}</h1>
+
+    <div class="settings-group">
+      <button
+        type="button"
+        class="word settings-row"
+        data-testid="settings-theme"
+        :aria-label="copy.themeSwitchAria(themeLabel)"
+        @click="toggleTheme"
+      >
+        {{ copy.settingsRows.theme }}：{{ themeLabel }}
+      </button>
+    </div>
 
     <div class="settings-group">
       <button

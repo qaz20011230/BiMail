@@ -625,10 +625,8 @@ button.local-line:focus-visible {
     --ink-faint: #4a4a4a;
     --accent: #0055aa;
   }
-}
 
-@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme='dark'] {
     --ink-faint: #b8c0c8;
     --accent: #8ab8ff;
   }

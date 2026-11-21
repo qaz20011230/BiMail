@@ -62,7 +62,7 @@ await cdp.send('Network.emulateNetworkConditions', {
 
 ## 3. 设置面 / 导出 / 销毁 / 换座
 
-- 设置入口：流底部 `.settings-entry` 的「设置」词（非齿轮）→ 设置面四行固定顺序。
+- 设置入口：流底部 `.settings-entry` 的「设置」词（非齿轮）→ 设置面五行固定顺序（首行「外观」可切换亮/暗，选择持久化）。
 - 查看恢复密钥：点击 → 「再次确认：现在显示这把钥匙。」→「确认」→ `.recovery-key` 展示且**不再自动隐藏**；关闭再进入时不提前显示。
 - 导出：拦截 `URL.createObjectURL` 与 `a.click` 捕获 Blob 文本与文件名，核对：
 
