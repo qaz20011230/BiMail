@@ -148,7 +148,7 @@ watch(
     <template v-if="inviteUrl !== null">
       <p class="invite-hint" data-testid="invite-hint">{{ copy.inviteExpiryHint }}</p>
       <div class="invite-actions">
-        <button type="button" class="word" data-testid="invite-copy" @click="copyInvite">
+        <button type="button" class="word word--accent" data-testid="invite-copy" @click="copyInvite">
           {{ inviteCopied ? copy.words.copied : copy.words.copyLink }}
         </button>
       </div>

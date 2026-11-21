@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * 色彩验收（SPEC §4.1）：
- * - 正文对比度 ≥12:1，淡语 ≥4.5:1（亮色/暗色各一套）
- * - 全站色相数 = 1：所有令牌色度为同一暖色相，色度 (max-min)/255 ≤ 6%
+ * 色彩验收（SPEC §4.1，2026-11-22 品牌配色）：
+ * - 与 liang.world 对齐：白纸 + 深灰墨 + 品牌蓝 #0066CC
+ * - 正文对比度 ≥12:1，淡语 ≥4.5:1，品牌蓝（链接/焦点/寄出）≥4.5:1
+ * - 中性令牌色度 ≤6%，品牌蓝保持单一色相（约 210°）
  */
 
 import { readFileSync } from 'node:fs'
@@ -85,38 +86,54 @@ auditScheme('亮色', light, [
   ['ink-mine', 12],
   ['ink-theirs', 12],
   ['ink-faint', 4.5],
+  ['accent', 4.5],
 ])
 auditScheme('暗色', dark, [
   ['ink-mine', 12],
   ['ink-theirs', 12],
   ['ink-faint', 4.5],
+  ['accent', 4.5],
 ])
 
-// 色相数 = 1 且低饱和：只审计彩色令牌（纸/墨/淡语），允许 --focus-ring 等派生值缺席。
-const colorTokens = new Set()
+// 中性令牌保持低饱和（纸/墨/淡语）；品牌蓝是唯一的彩色令牌。
+const neutralTokens = ['paper', 'ink-mine', 'ink-theirs', 'ink-faint']
 for (const scheme of [light, dark]) {
-  for (const name of ['paper', 'ink-mine', 'ink-theirs', 'ink-faint']) {
+  for (const name of neutralTokens) {
     const value = scheme[name]
     if (!value) continue
-    colorTokens.add(value)
     const percent = chromaPercent(value)
-    rows.push(`色度 ${value}: ${percent.toFixed(2)}%（要求 ≤6%）`)
-    if (percent > 6) failures.push(`${value} 色度 ${percent.toFixed(2)}% > 6%（引入强调色）`)
+    rows.push(`中性 ${value}: ${percent.toFixed(2)}%（要求 ≤6%）`)
+    if (percent > 6) failures.push(`${value} 色度 ${percent.toFixed(2)}% > 6%（中性令牌不应引入彩色）`)
   }
 }
 
-const hues = [...colorTokens].map(hue).filter((value) => value !== null)
-const hueSpread = Math.max(...hues) - Math.min(...hues)
-rows.push(`色相范围: ${Math.min(...hues).toFixed(1)}°–${Math.max(...hues).toFixed(1)}°（要求跨度 ≤10°）`)
-if (hueSpread > 10) failures.push(`色相跨度 ${hueSpread.toFixed(1)}° > 10°（全站色相数应为 1）`)
+for (const [name, scheme, expectedHue] of [
+  ['亮色', light, 210],
+  ['暗色', dark, 212],
+]) {
+  const accent = scheme.accent
+  if (!accent) {
+    failures.push(`${name}: 缺少品牌蓝 --accent`)
+    continue
+  }
+  const percent = chromaPercent(accent)
+  const accentHue = hue(accent)
+  rows.push(`品牌蓝 ${accent}: 色度 ${percent.toFixed(2)}%，色相 ${accentHue?.toFixed(1)}°（目标 ~${expectedHue}°）`)
+  if (percent < 30) failures.push(`${accent} 饱和度偏低，无法承担品牌蓝强调`)
+  if (accentHue === null || Math.abs(accentHue - expectedHue) > 10) {
+    failures.push(`${accent} 色相 ${accentHue?.toFixed(1)}° 偏离品牌蓝（目标 ~${expectedHue}°）`)
+  }
+}
 
 const intentionalContrast = [
-  ['亮色 我', '#1a1917', '#f5f3ef'],
-  ['亮色 笔友', '#2e2c28', '#f5f3ef'],
-  ['亮色 淡语', '#6e6a61', '#f5f3ef'],
-  ['暗色 我', '#e8e4dc', '#171614'],
-  ['暗色 笔友', '#d8d3c9', '#171614'],
-  ['暗色 淡语', '#9a958b', '#171614'],
+  ['亮色 我', '#1a1a1a', '#ffffff'],
+  ['亮色 笔友', '#333333', '#ffffff'],
+  ['亮色 淡语', '#666666', '#ffffff'],
+  ['亮色 品牌蓝', '#0066cc', '#ffffff'],
+  ['暗色 我', '#f2f2f2', '#101214'],
+  ['暗色 笔友', '#d6d6d6', '#101214'],
+  ['暗色 淡语', '#a3a9b0', '#101214'],
+  ['暗色 品牌蓝', '#66a3ff', '#101214'],
 ]
 
 for (const row of rows) console.log(`  ${row}`)
@@ -129,4 +146,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`)
   process.exit(1)
 }
-console.log('✓ 色彩验收通过：对比度阈值达标，暖灰单色相，无强调色')
+console.log('✓ 色彩验收通过：白纸/深灰墨/品牌蓝，对比度与色相一致')

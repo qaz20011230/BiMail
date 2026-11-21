@@ -109,7 +109,7 @@ await page.setViewportSize({ width: 390, height: 844 });   // 移动端
 
 - 移动端：`(pointer:fine)` 为 false 时不自动聚焦；输入区 `bottom=844` 吸底；版心 350px、条目 86%（我靠右 / 笔友靠左，`margin-left:auto` / `margin-right:auto`），文本仍左对齐；
 - 键盘 Tab：设置 → 输入框 → 寄出词；`:focus-visible` 为 1px 中性描边（textarea 按 SPEC §3.2/§4.4 裁定无描边）；
-- 暗色/亮色下抽查 computed color 与 `--paper/#171614`、`--ink-mine/#E8E4DC`、`--ink-theirs/#D8D3C9`、`--ink-faint/#9A958B`；
+- 暗色/亮色下抽查 computed color 与 `--paper/#101214`、`--ink-mine/#F2F2F2`、`--ink-theirs/#D6D6D6`、`--ink-faint/#A3A9B0`、`--accent/#66A3FF`；
 - 全站无「在线/正在输入/已读/同步中/送达/成功/刚刚/分钟前/今天/昨天」等过程信号；无 `<a>` 内容链接、无 `<img>`、无弹窗/Toast/角标。
 
 ## 6. 截图

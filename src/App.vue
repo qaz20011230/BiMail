@@ -113,7 +113,7 @@ async function onDestroy(): Promise<void> {
       <button
         v-if="wall.canCreateWall"
         type="button"
-        class="word"
+        class="word word--accent"
         data-testid="invite-create-wall"
         @click="wall.createNewWall()"
       >

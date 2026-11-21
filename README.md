@@ -157,7 +157,7 @@ npm run check          # typecheck + 文案 + 色彩 + 单测 + 集成 + SQL + �
 | `npm run test:integration` | 28 条真实 HTTP 全链路测试（双人流程、幂等、T1/T4/T5/T6/T7、限流、关墙、离开 closed 墙） |
 | `npm run test:sql` | PGlite 执行 Supabase 迁移，断言 RLS/权限/视图字段集/外键/幂等/离开 closed 墙（17 组） |
 | `npm run check:copy` | 禁用词（30 项）与结构禁令（12 类：弹窗/轮询/WebSocket/`v-html`/`<a>`/第三方 URL…） |
-| `npm run check:contrast` | 正文对比度 ≥12:1、淡语 ≥4.5:1、单暖色相、色度 ≤6% |
+| `npm run check:contrast` | 正文对比度 ≥12:1、淡语 ≥4.5:1、品牌蓝 ≥4.5:1；中性色度 ≤6%、品牌蓝单一色相 |
 | `npm run build && npm run check:budget` | 首屏 JS/CSS gzip、请求数、CSP、零图片/零 Web Font/零第三方 |
 
 **实测**：
@@ -250,7 +250,7 @@ delete from public.rebind_attempt;
 
 ## 规格内部冲突的裁定（诚实记录）
 
-1. **暗色笔友墨色**：SPEC §4.1 给定暗色 `#C9C4BA`，对纸 `#171614` 实测仅 10.41:1，达不到同节“正文 ≥12:1”。裁定：保留色相/色度，调整为 `#D8D3C9`（12.13:1），以可验收阈值为准。
+1. **品牌配色对齐**（2026-11-22）：按用户要求采用 `liang.world` 的色板——白纸 `#FFFFFF`、深灰正文 `#333333`、品牌蓝 `#0066CC`；身份仍由位置/字重/墨色承担，蓝色只用于链接、焦点与寄出等主操作。原暖灰单色令牌废止。
 2. **`seat.joined_on` 使用 UTC 日期**（SPEC §5.2 明确 `(now() at time zone 'utc')::date`）。UTC+8 深夜建座时，派生语“两位笔友到齐”可能比写作者本地日期早一天；规格给定 UTC，不重排、不换算。
 3. **邀请明文只出现在建墙响应**：服务端只存 token 哈希，`wall_state` 不回传明文；创建者设备在 localStorage 保存明文以便刷新后回显。**清空设备存储后邀请链接不可再取回**（无服务端重发）。
 4. **Composer 无焦点光环**（SPEC §3.2），键盘可达性由插入光标与其余控件的 `:focus-visible` 1px 描边承担。
@@ -280,7 +280,7 @@ delete from public.rebind_attempt;
 ## 文案与约束纪律
 
 - 所有界面文字来自 `src/copy.ts`；`npm run check:copy` 拦截 30 个禁用词（聊天/会话/好友/用户/消息/在线/已读/绝对安全…）与 12 类结构禁令（弹窗、Toast、轮询、WebSocket、`supabase-js`、`v-html`、内容链接、第三方 URL…）。
-- 全站色相数 = 1，无强调色；唯一动效是 120ms 淡入与 160ms 滚动，`prefers-reduced-motion` 下归零。
+- 全站采用 `liang.world` 同一套色板：白纸、深灰墨、品牌蓝 `#0066CC`（仅链接/焦点/寄出等主操作）；唯一动效是 120ms 淡入与 160ms 滚动，`prefers-reduced-motion` 下归零。
 - 无图片、无 Web Font、无第三方脚本；`created_at` / `client_uuid` / 阅读位置永不出库/不上行。
 
 ---

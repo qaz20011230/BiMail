@@ -281,7 +281,7 @@ onBeforeUnmount(() => {
         <template v-if="!newWallArmed">
           <button
             type="button"
-            class="word"
+            class="word word--accent"
             data-testid="new-wall-entry"
             :disabled="wall.busy"
             @click="newWallArmed = true"
@@ -295,7 +295,7 @@ onBeforeUnmount(() => {
           <div class="closed-new-wall-actions">
             <button
               type="button"
-              class="word"
+              class="word word--accent"
               data-testid="new-wall-confirm"
               :disabled="wall.busy"
               @click="confirmNewWall"

@@ -54,7 +54,8 @@ input {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--ink-faint) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--ink-mine);
 }
 
 /* —— 通用 —— */
@@ -75,7 +76,7 @@ input {
   color: var(--ink-faint);
 }
 
-/* 词形控件：无边框、无背景、无彩色；触屏最小 44px，键盘可见焦点（§4.4 裁定）。 */
+/* 词形控件：无边框、无背景；主操作使用品牌蓝；触屏最小 44px，键盘可见焦点（§4.4 裁定）。 */
 .word {
   display: inline-flex;
   align-items: center;
@@ -93,7 +94,15 @@ input {
 }
 
 .word:hover {
-  color: var(--ink-mine);
+  color: var(--accent);
+}
+
+.word--accent {
+  color: var(--accent);
+}
+
+.word--accent:hover {
+  color: var(--accent-hover);
 }
 
 .word:active {
@@ -284,8 +293,12 @@ input {
   font-family: var(--font-mono);
   font-size: var(--size-small);
   line-height: 1.6;
-  color: var(--ink-faint);
+  color: var(--accent);
   text-align: center;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   word-break: break-all;
   white-space: normal;
   user-select: all;
@@ -382,7 +395,7 @@ button.local-line:focus-visible {
   caret-color: var(--ink-mine);
 }
 
-/* 鼠标聚焦无光环；键盘 Tab 进入时才显示 1px 中性描边（§4.4 裁定）。 */
+/* 鼠标聚焦无光环；键盘 Tab 进入时才显示 1px 品牌蓝描边（§4.4 裁定）。 */
 .composer-input--keyboard {
   outline: var(--focus-ring);
   outline-offset: 2px;
@@ -401,7 +414,7 @@ button.local-line:focus-visible {
 
 .composer-word {
   font-size: var(--size-body);
-  color: var(--ink-faint);
+  color: var(--accent);
 }
 
 .composer-shortcut {
@@ -573,7 +586,7 @@ button.local-line:focus-visible {
 }
 
 .settings-row:hover {
-  color: var(--ink-mine);
+  color: var(--accent);
 }
 
 .settings-row:focus-visible {
@@ -609,13 +622,15 @@ button.local-line:focus-visible {
 /* 高对比度偏好：淡语下探到更深的墨，而正文保持原样。 */
 @media (prefers-contrast: more) {
   :root {
-    --ink-faint: #55514a;
+    --ink-faint: #4a4a4a;
+    --accent: #0055aa;
   }
 }
 
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
   :root {
-    --ink-faint: #b8b2a6;
+    --ink-faint: #b8c0c8;
+    --accent: #8ab8ff;
   }
 }
 

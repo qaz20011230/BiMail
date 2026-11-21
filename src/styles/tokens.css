@@ -1,12 +1,14 @@
-/* 设计令牌。全站色相数 = 1（中性暖灰），无强调色，无饱和度 > 6% 的色值。 */
+/* 设计令牌。与 liang.world 同一套品牌色：白纸 + 深灰墨 + 经典蓝强调（#0066CC）。 */
 
 :root {
   color-scheme: light dark;
 
-  --paper: #f5f3ef;
-  --ink-mine: #1a1917;
-  --ink-theirs: #2e2c28;
-  --ink-faint: #6e6a61;
+  --paper: #ffffff;
+  --ink-mine: #1a1a1a;
+  --ink-theirs: #333333;
+  --ink-faint: #666666;
+  --accent: #0066cc;
+  --accent-hover: #0055aa;
 
   --weight-mine: 500;
   --weight-theirs: 400;
@@ -29,14 +31,16 @@
 
   --duration-fade: 120ms;
   --duration-scroll: 160ms;
-  --focus-ring: 1px solid var(--ink-faint);
+  --focus-ring: 1px solid var(--accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #171614;
-    --ink-mine: #e8e4dc;
-    --ink-theirs: #d8d3c9;
-    --ink-faint: #9a958b;
+    --paper: #101214;
+    --ink-mine: #f2f2f2;
+    --ink-theirs: #d6d6d6;
+    --ink-faint: #a3a9b0;
+    --accent: #66a3ff;
+    --accent-hover: #8ab8ff;
   }
 }

@@ -34,7 +34,7 @@
 | `npm run test:integration` | **25/25 pass**（真实 `server/dev-server.mjs` 子进程 + 临时端口 + 临时库） |
 | `npm run test:sql` | **16/16 pass**（PGlite 内存库执行 `supabase/migrations/*.sql` 两遍验证幂等 + `set role authenticated` + `request.jwt.claims` 断言 T1–T7） |
 | `npm run check:copy` | 通过：32 个源文件 / 禁用词 30 项 / 结构禁令 12 项 |
-| `npm run check:contrast` | 通过：亮色 `我 15.85:1`、`笔友 12.57:1`、`淡语 4.86:1`；暗色 `我 14.26:1`、`笔友 12.13:1`、`淡语 6.07:1`；色度 ≤5.88%，色相跨度 40.0°–41.5° |
+| `npm run check:contrast` | 通过：亮色 `我 17.40:1`、`笔友 12.63:1`、`淡语 5.74:1`、`品牌蓝 5.57:1`；暗色 `我 16.77:1`、`笔友 12.92:1`、`淡语 7.92:1`、`品牌蓝 7.37:1`；中性色度 ≤5.10%，品牌蓝色相 210.0°/216.1° |
 | `npm run build` | 通过：`index.js 103.52KB / gzip 38.60KB`、`style.css 7.85KB / gzip 2.12KB` |
 | `npm run check:budget` | 通过：JS **37.69KB** gzip、CSS **2.07KB** gzip、首屏请求 **2**、零图片/零 Web Font/零第三方、CSP meta 就位 |
 
@@ -59,8 +59,8 @@
 | 10 | 定位到上次离开处，且无任何「新」标记 | 在 240 条已加载窗口中真实滚动（scroll 事件经 rAF 写入 `last_seen_seq`）→ lastSeen=1018；第三方身份经 API 追写 seq 1019；A 重新加载 → 断言 `scrollTop>0`、`[data-seq=1018]` 底边位于视口底边上方 16px、最新 seq 1019 顶边在视口下方（折叠外）、全文无「新」字、`.entry--new` 数 0、seq 升序 | qa12：`anchored{lastSeen:1018,scrollTop:28993,anchorRect:{top:521,bottom:788},streamHeight:805,lastEntryTop:812,lastEntrySeq:1019,newMarkerTextHits:[],entryNewElements:0}` | 通过 |
 | 11 | 1000 条历史下分页与滚动流畅，DOM ≤240 | 用页面会话 access_token 经 `/api/rpc/post_entry` 批量造 1000 条 + 5 条日期游程样本（服务端共 1013 条）；重载 → 首屏 120；下拉/回到顶部触发哨兵 `load-older` → 240；再触发不增长（`has_more=false`，更早历史不加载为契约行为）。滚动 20 步测帧：avg 15.81ms / p95 18.3ms | qa10b/qa11：`firstLoad.entryCount=120` → `page2.entryCount=240` → `page3.domEntries=240,ascending=true`；qa12：`scrollPerf{avg:15.81,p95:18.3,max:18.3}` | 通过 |
 | 12 | 跨时区日期游程分组不重排、不撒谎 | 在 1000 条之后追加 5 条 `written_on=[11-11,11-13,11-11,11-13,11-12]` 的条目；重载后断言日期组按 seq 顺序呈现为 5 个连续单条 run，标签序列与写入顺序完全一致（非单调、重复均保留），且 `.entry` seq 严格升序；渲染不做时区换算 | qa10b：`datePattern=[11月11日,11月13日,11月11日,11月13日,11月12日]`（各 1 条、seq 1014–1018 递增）；qa11：`labels` tail 与之一致、`ascending=true` | 通过 |
-| 13 | 暗色、`prefers-reduced-motion`、键盘可达、`:focus-visible` 全部通过 | ① 暗色：`emulateMedia({colorScheme:'dark'})` → body `rgb(23,22,20)`、我 `#E8E4DC/500`、笔友 `#D8D3C9/400`、淡语 `#9A958B`；切回 light → `rgb(245,243,239)`。② reduced-motion：默认 `.entry--new` animation `bimail-entry-in 0.12s ease-out`，`reduce` 时 `animationName:none / 0s`（CSSOM 存在对应 media 规则）。③ 键盘：Tab 焦点顺序 设置 → 输入框 → 寄出词；`:focus-visible` 计算样式 1px solid `rgb(110,106,97)`、offset 2px（设置行/寄出词）；textarea 可见焦点由规格裁定不设描边；桌面自动聚焦输入框，移动端（CDP touch 仿真 pointer:coarse）不自动聚焦（activeElement=BODY） | qa08：dark tokens、`motion{animationName:'none',duration:'0s'}`、mobile `pointerFine=false,activeElement=BODY`；qa09：`focusOrder`、`wordFocus.outline={solid,1px,offset:2px}`；qa19：1440×900 `pointerFine=true,activeElement=composer-input`、`anim{bimail-entry-in,0.12s}` | 通过 |
-| 14 | 对比度与色相数断言通过 | `npm run check:contrast`（见 §1 数字）；DOM 计算色在暗色下抽查与令牌一致；正文对比度亮 15.85/12.57、暗 14.26/12.13（≥12），淡语 4.86/6.07（≥4.5），色度 ≤5.88%（≤6%），色相跨度 1.5° | `npm run check:contrast` 输出；qa08 `dark.tokens` | 通过 |
+| 13 | 暗色、`prefers-reduced-motion`、键盘可达、`:focus-visible` 全部通过 | ① 暗色：`emulateMedia({colorScheme:'dark'})` → body `rgb(16,18,20)`、我 `#F2F2F2/500`、笔友 `#D6D6D6/400`、淡语 `#A3A9B0`；切回 light → `rgb(255,255,255)`。② reduced-motion：默认 `.entry--new` animation `bimail-entry-in 0.12s ease-out`，`reduce` 时 `animationName:none / 0s`（CSSOM 存在对应 media 规则）。③ 键盘：Tab 焦点顺序 设置 → 输入框 → 寄出词；`:focus-visible` 计算样式 1px solid `rgb(0,102,204)`、offset 2px（设置行/寄出词）；输入框键盘 Tab 聚焦时显示 1px 品牌蓝描边；桌面自动聚焦输入框，移动端（CDP touch 仿真 pointer:coarse）不自动聚焦（activeElement=BODY） | qa08：dark tokens、`motion{animationName:'none',duration:'0s'}`、mobile `pointerFine=false,activeElement=BODY`；qa09：`focusOrder`、`wordFocus.outline={solid,1px,offset:2px}`；qa19：1440×900 `pointerFine=true,activeElement=composer-input`、`anim{bimail-entry-in,0.12s}` | 通过 |
+| 14 | 对比度与品牌色断言通过 | `npm run check:contrast`（见 §1 数字）；DOM 计算色在暗色下抽查与令牌一致；正文对比度亮 17.40/12.63、暗 16.77/12.92（≥12），淡语 5.74/7.92、品牌蓝 5.57/7.37（≥4.5），中性色度 ≤5.10%（≤6%），品牌蓝色相 210.0°/216.1° | `npm run check:contrast` 输出；qa08 `dark.tokens` | 通过 |
 | 15 | T1：第三 uid 直接查询 `entry`/`v_entry` 返回零行 | PGlite SQL 套件 T1：第三方以 `authenticated` 查询视图/基表零行、RPC 拒绝、`anon` 无权限；集成套件 T1：无座位第三方 `list_entries` 空页、`post_entry` 409、`wall_state` 409。浏览器补充：换座后旧 uid 的 `list_entries` 返回 `{entries:[],has_more:false}`、`wall_state` 409 `no_seat` | `npm run test:sql` ✔ T1；`npm run test:integration` ✔ T1；qa06b `oldUidAfterRebind` | 通过 |
 | 16 | T2：视图字段集不含 `created_at`、`client_uuid`、阅读/在线字段 | SQL 套件 T2 直接断言 `v_entry(id,seq,slot,body,written_on)`、`v_seat(slot,joined_on)` 字段集；集成套件断言响应字段集；浏览器抽查 `post_entry/list_entries` 响应只有 `id/seq/slot/body/written_on` 与 `entries/has_more` | `npm run test:sql` ✔ T2；集成测试「list_entries … 不得返回 created_at/client_uuid」；qa06b/qa07 API 抓包 | 通过 |
 | 17 | T3：`has_table_privilege('authenticated','entry','UPDATE/DELETE')` 为假 | SQL 套件 T3：`entry` 无 select/insert/update/delete 表级权限、视图只读；迁移中 `revoke all` + 仅 `grant select on v_entry,v_seat` | `npm run test:sql` ✔ T3 | 通过（数据库层断言；浏览器无对应操作面） |
@@ -78,7 +78,7 @@
 
 ## 3. 已知裁定（不计为缺陷，按 Lead 裁定与 SPEC 冲突说明记录）
 
-1. **暗色 `--ink-theirs` 由 `#C9C4BA` 调整为 `#D8D3C9`**：SPEC §4.1 给定暗色值对纸 `#171614` 实测仅 **10.41:1**，与同节「正文对比度 ≥12:1」的验收阈值冲突。按可验收阈值裁定采用 `#D8D3C9`，实测 **12.13:1**（≥12），色度 5.88%（≤6%），色相不变。`check:contrast` 与暗色 DOM 计算色均验证。
+1. **2026-11-22 品牌配色对齐 `liang.world`**：按用户要求将暖灰单色方案替换为白纸 `#FFFFFF`、深灰正文 `#333333`、品牌蓝 `#0066CC`；暗色映射为 `#101214`/`#F2F2F2`/`#D6D6D6`/`#A3A9B0`/`#66A3FF`。`check:contrast` 与暗色 DOM 计算色均重新验证。
 2. **`seat.joined_on` 用服务端 UTC 日期**：SPEC §5.2 默认 `(now() at time zone 'utc')::date`。本轮验收恰在 UTC+8 深夜（本地 11-12、UTC 11-11），实测派生语为「**11月11日，两位笔友到齐。**」，而留言日期标签为「11月12日」。与 Lead 申报的已知取舍一致：派生语可能比写作者本地日期早一天，规格明确 UTC，不重排、不换算。
 3. **邀请明文 token 的保管边界**：服务端只存 SHA-256，明文只出现在 `create_wall` 响应一次；创建者设备将其存入 `localStorage['bimail.invite']` 以便刷新后仍可取回邀请链接。**清空设备存储后无法再取回邀请链接**（列残余风险）。实测 nascent 期间 `.invite-line` 显示 `http://<origin>/#i=<32字符>` 纯文本（非 `<a>`），b 占座后消失，`bimail.invite` 被清除。
 4. **Composer textarea 无 focus 描边**：SPEC §3.2「无边框、无背景、无焦点光环」与 §4.4 无障裁定共存——鼠标聚焦无光环；键盘 `:focus-visible` 的可见描边由词形控件（`.word`）与 `key-input` 承担。实测 textarea 在 `:focus-visible=true` 时 `outline-style:none`；设置行/寄出词为 1px 中性描边。属规格内部冲突的既定裁定。
@@ -118,8 +118,8 @@
 | 滚动帧 | 20 步程序化滚动：avg **15.81ms**、p95 18.3ms、max 18.3ms（240 条重条目） | ~60fps ✔ |
 | 屏内可见留言中位数 | 桌面 1440×900：**2**（2,3,2,2,2）；移动 390×844：**1**（1,2,1,1,1） | ≤4 ✔（方法见 §3.6） |
 | 版心/宽度 | 桌面版心 600px、条目 516px=86%；移动版心 350px、条目 301px=86%；正文 17px / 行高 1.75（29.75px）；相邻间距 24px；日期组上 40/下 16 | §4.2 ✔ |
-| 对比度 | 亮：我 15.85 / 笔友 12.57 / 淡语 4.86；暗：我 14.26 / 笔友 12.13 / 淡语 6.07 | 正文 ≥12、淡语 ≥4.5 ✔ |
-| 色相/色度 | 单暖灰色相 40.0°–41.5°（跨度 1.5°）；令牌色度 1.18%–5.88% | ≤6% / 单色相 ✔ |
+| 对比度 | 亮：我 17.40 / 笔友 12.63 / 淡语 5.74 / 品牌蓝 5.57；暗：我 16.77 / 笔友 12.92 / 淡语 7.92 / 品牌蓝 7.37 | 正文 ≥12、淡语/品牌蓝 ≥4.5 ✔ |
+| 色相/色度 | 中性令牌色度 0%–5.10%；品牌蓝色相 210.0°/216.1° | 中性 ≤6% / 品牌蓝单色相 ✔ |
 | 空闲网络 | 10s 静置：请求 0、WebSocket 0（生产预览 & dev 均验） | #9 ✔ |
 
 ---
@@ -146,7 +146,7 @@
 | `04-acceptor-wall-light.png` | 笔友 B 占座后首屏：封缄的信以「笔友：」呈现 + 派生语 | 1440×900 / 亮色 |
 | `05-settings-light.png` | 设置面四行 + 查看恢复密钥（二次确认后展示）+ 动作结果行 | 1440×900 / 亮色 |
 | `06-lost-key-screen-light.png` | 凭据失效屏（缺陷 2 修复后）：说明行 + 「还没有墙，就先建一堵。」+ 钥匙输入 + 「建一堵新墙」 | 1440×900 / 亮色 |
-| `07-desktop-dark-wall.png` | 暗色墙（对照 `--ink-theirs #D8D3C9`、纸 #171614） | 1440×900 / 暗色 |
+| `07-desktop-dark-wall.png` | 暗色墙（对照 `--ink-theirs #D6D6D6`、纸 #101214；待按新色板重拍） | 1440×900 / 暗色 |
 | `08-mobile-input.png` | 移动端输入中：390 宽、版心 350、条目 86%（我右/笔友左）、输入文字 + 「寄出」/「⌘⏎」、输入区吸底 | **390×844** / 亮色 |
 | `10-empty-wall-light.png` | 空墙（新建墙确认后）：空态创建者文案 + 邀请行 + 首访提示 | 1440×900 / 亮色 |
 
