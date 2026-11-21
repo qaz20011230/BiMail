@@ -30,5 +30,12 @@ const classes = computed(() => CLASS_BY_VARIANT[props.variant])
 </script>
 
 <template>
-  <p :class="classes" :data-testid="testid">{{ text }}</p>
+  <p
+    :class="classes"
+    :data-testid="testid"
+    :role="variant === 'notice' ? 'status' : undefined"
+    :aria-live="variant === 'notice' ? 'polite' : undefined"
+  >
+    {{ text }}
+  </p>
 </template>

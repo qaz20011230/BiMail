@@ -254,9 +254,16 @@ describe('EntryStream：派生语 / 邀请行 / 提示行', () => {
     expect(wrapper.find('a').exists()).toBe(false)
   })
 
-  it('inviteUrl 为 null 时不渲染邀请行', () => {
-    const wrapper = mountStream()
-    expect(wrapper.find('.invite-line').exists()).toBe(false)
+  it('邀请块含 7 天提示与「复制链接」词；null 时整块不渲染', () => {
+    const inviteUrl = 'https://bimail.example/#i=0123456789abcdef0123456789abcdef'
+    const wrapper = mountStream({ inviteUrl })
+    expect(wrapper.find('[data-testid="invite-hint"]').text()).toBe(copy.inviteExpiryHint)
+    expect(wrapper.get('[data-testid="invite-copy"]').text()).toBe(copy.words.copyLink)
+
+    const empty = mountStream()
+    expect(empty.find('.invite-line').exists()).toBe(false)
+    expect(empty.find('[data-testid="invite-hint"]').exists()).toBe(false)
+    expect(empty.find('[data-testid="invite-copy"]').exists()).toBe(false)
   })
 
   it('提示行逐行渲染为 .notice-line', () => {

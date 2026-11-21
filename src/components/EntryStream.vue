@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Entry, QueuedEntryView, Slot, WallState } from '../types'
 import { copy } from '../copy'
 import { groupByDay } from '../lib/grouping'
+import { copyText } from '../lib/recovery-key'
 import DayGroup from './DayGroup.vue'
 import StreamLine from './StreamLine.vue'
 
@@ -41,6 +42,22 @@ const emit = defineEmits<{
 }>()
 
 const dayGroups = computed(() => groupByDay(props.entries))
+
+/** 邀请链接复制：只在本机剪贴板，不产生网络请求。 */
+const inviteCopied = ref(false)
+let inviteCopyTimer: ReturnType<typeof setTimeout> | null = null
+
+async function copyInvite(): Promise<void> {
+  if (props.inviteUrl === null) return
+  const ok = await copyText(props.inviteUrl)
+  if (!ok) return
+  inviteCopied.value = true
+  if (inviteCopyTimer !== null) clearTimeout(inviteCopyTimer)
+  inviteCopyTimer = setTimeout(() => {
+    inviteCopyTimer = null
+    inviteCopied.value = false
+  }, 1600)
+}
 
 /** 排队区两步撤回：先展开确认词，再点才真的撤回。逐条独立。 */
 const armed = ref<Set<string>>(new Set())
@@ -91,6 +108,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   observer?.disconnect()
   observer = null
+  if (inviteCopyTimer !== null) {
+    clearTimeout(inviteCopyTimer)
+    inviteCopyTimer = null
+  }
 })
 
 watch(
@@ -124,6 +145,14 @@ watch(
       :text="copy.inviteLinkLine(inviteUrl)"
       testid="invite-line"
     />
+    <template v-if="inviteUrl !== null">
+      <p class="invite-hint" data-testid="invite-hint">{{ copy.inviteExpiryHint }}</p>
+      <div class="invite-actions">
+        <button type="button" class="word" data-testid="invite-copy" @click="copyInvite">
+          {{ inviteCopied ? copy.words.copied : copy.words.copyLink }}
+        </button>
+      </div>
+    </template>
 
     <StreamLine v-if="emptyLine !== null" variant="empty" :text="emptyLine" testid="empty-line" />
 

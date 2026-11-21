@@ -204,6 +204,8 @@ function showInviteError(line: string): void {
     wall.notice(line)
     wall.screen = 'wall'
   } else {
+    // 当前身份没有座位：邀请不可用时必须留一条「建一堵新墙」的出路。
+    wall.canCreateWall = true
     wall.errorLine = line
     wall.screen = 'invite-error'
   }

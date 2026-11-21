@@ -38,6 +38,14 @@ describe('§7 文案字典逐字实现', () => {
     expect(copy.wallClosed).toBe('这堵墙已经停下。')
   })
 
+  it('邀请块与无障碍标签文案', () => {
+    expect(copy.words.copyLink).toBe('复制链接')
+    expect(copy.words.copied).toBe('已复制')
+    expect(copy.inviteExpiryHint).toBe('这条链接 7 天内有效，只能使用一次。')
+    expect(copy.ariaStream).toBe('留言墙')
+    expect(copy.ariaComposer).toBe('写留言')
+  })
+
   it('closed 墙的新墙入口文案', () => {
     expect(copy.words.newWall).toBe('再建一堵新墙')
     expect(copy.newWallConfirm).toBe('开始新的一堵墙。这堵墙将不再可读。')

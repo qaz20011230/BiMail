@@ -19,7 +19,11 @@ body {
   font-size: var(--size-body);
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
+  text-autospace: normal;
+  text-spacing-trim: trim-start;
+  line-break: strict;
   overscroll-behavior-y: none;
 }
 
@@ -39,6 +43,8 @@ button {
   border: 0;
   padding: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 textarea,
@@ -90,6 +96,15 @@ input {
   color: var(--ink-mine);
 }
 
+.word:active {
+  opacity: 0.72;
+}
+
+.word:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .word:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
@@ -110,6 +125,7 @@ input {
   overscroll-behavior: contain;
   padding: 48px max(var(--gutter-mobile), calc((100% - var(--column-max)) / 2)) 24px;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -125,6 +141,28 @@ input {
 /* 哨兵恒为首子元素，首日分组不应额外获得 40px 上间距。 */
 .stream-sentinel + .day-group {
   margin-top: 0;
+}
+
+/* 空墙：邀请块留在顶部；空墙文案居中；设置入口靠下。 */
+.stream-scroll--empty {
+  display: flex;
+  flex-direction: column;
+}
+
+.stream-scroll--empty .stream {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.stream-scroll--empty .empty-line {
+  margin-top: auto;
+  margin-bottom: 24px;
+}
+
+.stream-scroll--empty .settings-entry {
+  margin-top: auto;
+  padding-bottom: 8px;
 }
 
 /* —— 日分组与留言 —— */
@@ -146,6 +184,8 @@ input {
   font-size: var(--size-small);
   line-height: var(--leading-small);
   font-weight: 400;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-faint);
   text-align: left;
 }
@@ -174,7 +214,9 @@ input {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  text-wrap: pretty;
   text-align: left;
+  letter-spacing: 0.01em;
   font-size: var(--size-body);
   line-height: var(--leading-body);
 }
@@ -203,7 +245,7 @@ input {
 }
 
 .entry--new {
-  animation: bimail-entry-in var(--duration-fade) ease-out both;
+  animation: bimail-entry-in var(--duration-fade) cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -234,19 +276,35 @@ input {
 }
 
 .empty-line {
-  margin-top: 96px;
+  margin-top: clamp(72px, 18vh, 180px);
 }
 
 .invite-line {
-  margin: 0 auto var(--space-day-top);
+  margin: 0 auto 6px;
   font-family: var(--font-mono);
   font-size: var(--size-small);
-  line-height: var(--leading-small);
+  line-height: 1.6;
   color: var(--ink-faint);
   text-align: center;
   word-break: break-all;
   white-space: normal;
   user-select: all;
+  cursor: text;
+}
+
+.invite-hint {
+  margin: 0 auto 6px;
+  max-width: 96%;
+  font-size: var(--size-small);
+  line-height: var(--leading-small);
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.invite-actions {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto var(--space-day-top);
 }
 
 .local-line {
@@ -306,6 +364,7 @@ button.local-line:focus-visible {
 
 .composer-input {
   display: block;
+  outline: none;
   width: 100%;
   min-height: 48px;
   max-height: 40vh;
@@ -318,10 +377,15 @@ button.local-line:focus-visible {
   color: var(--ink-mine);
   background: none;
   border: 0;
-  outline: none;
   resize: none;
   overflow-y: auto;
   caret-color: var(--ink-mine);
+}
+
+/* 鼠标聚焦无光环；键盘 Tab 进入时才显示 1px 中性描边（§4.4 裁定）。 */
+.composer-input--keyboard {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .composer-input::placeholder {
@@ -411,6 +475,10 @@ button.local-line:focus-visible {
   max-width: 86%;
 }
 
+.surface--notice .word {
+  margin-top: 4px;
+}
+
 .recovery-line,
 .lost-line {
   margin: 0;
@@ -422,6 +490,7 @@ button.local-line:focus-visible {
 
 .recovery-key {
   display: block;
+  font-variant-numeric: tabular-nums;
   margin: 0;
   padding: 8px 0;
   font-family: var(--font-mono);
@@ -474,6 +543,7 @@ button.local-line:focus-visible {
 
 .settings-title {
   margin: 0 0 24px;
+  letter-spacing: 0.08em;
   font-size: var(--size-small);
   line-height: var(--leading-small);
   font-weight: 400;
@@ -536,6 +606,19 @@ button.local-line:focus-visible {
   margin-top: 32px;
 }
 
+/* 高对比度偏好：淡语下探到更深的墨，而正文保持原样。 */
+@media (prefers-contrast: more) {
+  :root {
+    --ink-faint: #55514a;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --ink-faint: #b8b2a6;
+  }
+}
+
 /* —— 稳定的小屏修正 —— */
 
 @media (max-width: 480px) {
@@ -554,6 +637,7 @@ button.local-line:focus-visible {
 .closed-new-wall {
   max-width: 96%;
   margin: 40px auto 24px;
+  padding-top: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;

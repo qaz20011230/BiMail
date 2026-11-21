@@ -32,6 +32,8 @@ const MAX_HEIGHT_RATIO = 0.4
 const textarea = ref<HTMLTextAreaElement | null>(null)
 const value = ref('')
 const overflow = ref(0)
+const isFocused = ref(false)
+const keyboardModality = ref(false)
 
 const hasValue = computed(() => value.value.length > 0)
 // SPEC §3.1-8：这行提示「永久保留至第一次成功寄出」，输入过程中也不隐藏；
@@ -199,8 +201,28 @@ function updateKeyboardInset(): void {
 /* —— 失焦/隐藏：立即存草稿，键盘遮挡归零 —— */
 
 function handleBlur(): void {
+  isFocused.value = false
   flushDraft()
   resetKeyboardInset()
+}
+
+function handleFocus(): void {
+  isFocused.value = true
+}
+
+/** 整块输入区可点：点在空白处也把光标交还给 textarea（移动端更容易找到入口）。 */
+function handleDockClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button')) return
+  focus()
+}
+
+function handleDocumentKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Tab') keyboardModality.value = true
+}
+
+function handleDocumentPointerdown(): void {
+  keyboardModality.value = false
 }
 
 function handleVisibilityChange(): void {
@@ -233,6 +255,8 @@ function focus(): void {
 defineExpose({ focus, clear: clearInput })
 
 onMounted(() => {
+  document.addEventListener('keydown', handleDocumentKeydown, true)
+  document.addEventListener('pointerdown', handleDocumentPointerdown, true)
   const draft = loadDraft()
   if (draft.length > 0) {
     const excess = excessCodepoints(draft)
@@ -253,6 +277,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   flushDraft()
+  document.removeEventListener('keydown', handleDocumentKeydown, true)
+  document.removeEventListener('pointerdown', handleDocumentPointerdown, true)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   viewport?.removeEventListener('resize', updateKeyboardInset)
   viewport?.removeEventListener('scroll', updateKeyboardInset)
@@ -262,20 +288,25 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="composer-dock">
+  <div class="composer-dock" @click="handleDockClick">
     <p v-if="hintVisible" class="composer-hint faint">{{ copy.shortcutHint }}</p>
     <div class="composer">
       <textarea
         ref="textarea"
         class="composer-input"
+        :class="{ 'composer-input--keyboard': isFocused && keyboardModality }"
         data-testid="composer-input"
         rows="1"
         :value="value"
+        :aria-label="copy.ariaComposer"
+        autocomplete="off"
+        enterkeyhint="enter"
         @input="handleInput"
         @paste="handlePaste"
         @keydown="handleKeydown"
         @compositionstart="handleCompositionStart"
         @compositionend="handleCompositionEnd"
+        @focus="handleFocus"
         @blur="handleBlur"
       ></textarea>
       <div v-if="hasValue" class="composer-controls">
@@ -284,7 +315,7 @@ onBeforeUnmount(() => {
         </button>
         <span class="composer-shortcut faint">{{ shortcutText }}</span>
       </div>
-      <p v-if="overflow > 0" class="composer-overflow faint">{{ copy.overLimit(overflow) }}</p>
+      <p v-if="overflow > 0" class="composer-overflow faint" role="status">{{ copy.overLimit(overflow) }}</p>
     </div>
   </div>
 </template>

@@ -25,6 +25,7 @@ export const copy = {
   // 已 closed 的墙：离开旧墙并建新墙（§8 决策）
   newWallConfirm: '开始新的一堵墙。这堵墙将不再可读。',
   newWallWarnDelete: '你的文字会从这堵墙删除，建议先导出。',
+  inviteExpiryHint: '这条链接 7 天内有效，只能使用一次。',
   seatEstablished: (monthDay: string) => `${monthDay}，两位笔友到齐。`,
   destroyConfirm: '你的文字将被删除，这堵墙会停下。不可恢复。',
   wallClosed: '这堵墙已经停下。',
@@ -43,11 +44,17 @@ export const copy = {
     retry: '重试',
     createWall: '建一堵新墙',
     newWall: '再建一堵新墙',
+    copyLink: '复制链接',
+    copied: '已复制',
   },
 
   // —— 身份编码（§4.3）：屏幕阅读器前缀 ——
   srMine: '你：',
   srTheirs: '笔友：',
+
+  // —— 无障碍标签（仅屏幕阅读器可见）——
+  ariaStream: '留言墙',
+  ariaComposer: '写留言',
 
   // —— 恢复密钥屏 ——
   recoveryKeyCopyDone: '已复制。',

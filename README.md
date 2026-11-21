@@ -64,6 +64,12 @@ cd /tmp/bimail-ghpages && git init -q -b gh-pages && git add -A \
 
 ![生产环境](docs/evidence/09-production-wall.png)
 
+**2026-11-22 UI 精修**（邀请块复制链接 / 空墙居中构图 / 邀请失败可建墙 / 键盘焦点）：
+
+| 空墙（桌面） | 空墙（移动） | 邀请失败屏 |
+|---|---|---|
+| ![空墙桌面](docs/evidence/14-ui-polish-desktop.png) | ![空墙移动](docs/evidence/15-ui-polish-mobile.png) | ![邀请失败](docs/evidence/16-invite-error.png) |
+
 ---
 
 ## 快速开始（本地，零后端服务）
@@ -278,3 +284,4 @@ delete from public.rebind_attempt;
 | 2026-11-12 | **修复**：旧钥匙残留导致凭据屏无建墙入口的死路（身份无座位时始终提供「建一堵新墙」），已发布并生产验证 |
 | 2026-11-12 | 仓库上传：独立验收 24/24 DoD、214 单测 / 25 集成 / 16 SQL、CI 全绿 |
 | 2026-11-12 | **新功能上线**：`closed` 墙可离开旧墙并开新墙（`leave_closed_wall` + 部分唯一索引，活跃墙仍一人一墙）；迁移 `0003_leave_closed_wall.sql` 已应用生产；API 冒烟、217 单测 / 28 集成 / 17 SQL 与生产浏览器流程全部通过 |
+| 2026-11-22 | **UI/交互精修**：邀请块「复制链接」+ 7 天提示；邀请失败屏可建墙；空墙构图居中；键盘焦点描边与设置面 Esc/焦点回归；CJK 排版、日期等宽、`text-wrap: pretty`、滚动缓动与 active 反馈；219 单测 / 28 集成 / 17 SQL 全绿并已生产验证 |

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 单一表面的屏幕切换（A5）：无路由、无弹窗、无通知中心。 */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { copy } from './copy'
 import { wall } from './lib/store'
 import { downloadText, readStoredRecoveryKey } from './lib/recovery-key'
@@ -24,7 +24,19 @@ const settingsRecoveryKey = computed<string | null>(() => {
 
 onMounted(() => {
   void wall.boot()
+  document.addEventListener('keydown', onGlobalKeydown)
 })
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onGlobalKeydown)
+})
+
+function onGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && wall.screen === 'settings') {
+    event.preventDefault()
+    onCloseSettings()
+  }
+}
 
 function onConfirmKey(): void {
   settingsKeyRevealed.value = true
@@ -33,6 +45,10 @@ function onConfirmKey(): void {
 function onCloseSettings(): void {
   settingsKeyRevealed.value = false
   wall.closeSettings()
+  // 键盘用户关闭设置面后回到原入口，而不是掉到文档顶部。
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('[data-testid="settings-entry"]')?.focus()
+  })
 }
 
 async function onExport(): Promise<void> {
@@ -94,6 +110,15 @@ async function onDestroy(): Promise<void> {
 
     <div v-else-if="wall.screen === 'invite-error'" class="surface surface--notice">
       <p class="notice-line" data-testid="error-line">{{ wall.errorLine }}</p>
+      <button
+        v-if="wall.canCreateWall"
+        type="button"
+        class="word"
+        data-testid="invite-create-wall"
+        @click="wall.createNewWall()"
+      >
+        {{ copy.words.createWall }}
+      </button>
     </div>
 
     <div v-else-if="wall.screen === 'fatal'" class="surface surface--notice">

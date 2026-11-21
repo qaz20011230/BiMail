@@ -20,7 +20,7 @@ withDefaults(
 
 <template>
   <div class="day-group" data-testid="day-group">
-    <div class="day-label" data-testid="day-label">{{ label }}</div>
+    <h2 class="day-label" data-testid="day-label">{{ label }}</h2>
     <EntryRow
       v-for="entry in entries"
       :key="entry.id"

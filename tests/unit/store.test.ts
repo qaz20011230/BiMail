@@ -23,7 +23,7 @@ class FakeBackend implements Backend {
     state: 'nascent',
     my_slot: 'a',
     seats: [{ slot: 'a', joined_on: '2026-11-12' }],
-    invite: { token: 'A'.repeat(32), expires_on: '2026-11-19' },
+    invite: { token: 'A'.repeat(32), expires_on: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10) },
   }
   entries: Entry[] = []
   nextSeq = 1
@@ -182,6 +182,21 @@ describe('boot：首次来访流程', () => {
     await wall2.boot()
     expect(wall2.screen).toBe('wall')
     expect(wall2.inviteUrl).toContain('#i=' + 'A'.repeat(32))
+  })
+
+  it('邀请不可用且无墙时：凭据屏之外仍可「建一堵新墙」', async () => {
+    window.history.replaceState(null, '', '/#i=' + 'C'.repeat(32))
+    hoisted.fake.acceptInvite = async () => {
+      throw new BackendError('invite_consumed')
+    }
+    const wall = await loadStore()
+    await wall.boot()
+    expect(wall.screen).toBe('invite-error')
+    expect(wall.canCreateWall).toBe(true)
+    expect(wall.errorLine).toBe('这堵墙已有两位笔友。')
+
+    await wall.createNewWall()
+    expect(wall.screen).toBe('recovery')
   })
 
   it('带邀请进入：占座 → 恢复密钥屏 → 墙（open，邀请行消失）', async () => {

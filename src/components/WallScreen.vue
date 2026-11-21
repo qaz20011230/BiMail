@@ -22,6 +22,9 @@ const queued = computed(() => queuedViews.value)
 const mine = computed(() => wall.snapshot?.my_slot ?? 'a')
 const state = computed(() => wall.snapshot?.state ?? 'nascent')
 const isClosed = computed(() => state.value === 'closed')
+const isEmptyWall = computed(
+  () => !isClosed.value && wall.entries.length === 0 && wall.queue.length === 0,
+)
 const derived = computed(() => (wall.snapshot ? derivedLines(wall.snapshot) : []))
 
 const myClosedEntries = computed(() => wall.entries.filter((entry) => entry.slot === mine.value).length)
@@ -82,7 +85,9 @@ function scrollToBottomAnimated(duration = 160): void {
   const t0 = performance.now()
   const step = (now: number): void => {
     const progress = Math.min(1, (now - t0) / duration)
-    el.scrollTop = start + (target - start) * progress
+    // ease-out：末段收束，避免线性匀速的机械感（仍是 160ms，仍是唯一滚动动效）
+    const eased = 1 - (1 - progress) ** 3
+    el.scrollTop = start + (target - start) * eased
     if (progress < 1) requestAnimationFrame(step)
   }
   requestAnimationFrame(step)
@@ -248,7 +253,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="wall">
-    <main ref="streamEl" class="stream-scroll" data-testid="stream" @scroll.passive="onScroll">
+    <main
+      ref="streamEl"
+      class="stream-scroll"
+      :class="{ 'stream-scroll--empty': isEmptyWall }"
+      data-testid="stream"
+      :aria-label="copy.ariaStream"
+      @scroll.passive="onScroll"
+    >
       <EntryStream
         v-if="wall.snapshot"
         :entries="wall.entries"
