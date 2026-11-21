@@ -78,6 +78,8 @@ cd /tmp/bimail-ghpages && git init -q -b gh-pages && git add -A \
 |---|---|---|
 | ![空墙桌面](docs/evidence/14-ui-polish-desktop.png) | ![空墙移动](docs/evidence/15-ui-polish-mobile.png) | ![邀请失败](docs/evidence/16-invite-error.png) |
 
+> 说明：`01`–`13` 为功能验收历史截图（拍摄于 2026-11-12 暖灰配色）；`14`–`16` 为 2026-11-22 最新配色实拍（白纸/深灰/品牌蓝）。更多截图见 [`docs/evidence/`](docs/evidence/)。
+
 ---
 
 ## 快速开始（本地，零后端服务）
